@@ -48,14 +48,14 @@
 
 ### Design Patterns (SOP-005)
 
-- [ ] Architectural pattern selected: **********\_**********
-  - [ ] MVC / MVVM / Clean Architecture / Other
-- [ ] Code-level patterns identified:
-  - [ ] Repository Pattern (data access)
-  - [ ] Service Pattern (business logic)
-  - [ ] Factory Pattern (object creation)
-  - [ ] Other: **********\_**********
-- [ ] Pattern usage documented in `/docs/architecture/`
+- [x] Architectural pattern selected: Modular Monolith
+  - [x] MVC / MVVM / Clean Architecture / Other
+- [x] Code-level patterns identified:
+  - [x] Repository Pattern (data access)
+  - [x] Service Pattern (business logic)
+  - [x] Factory Pattern (object creation)
+  - [x] Other: Feature-Based Organization, Server Actions Pattern
+- [x] Pattern usage documented in `/docs/architecture/`
 
 ### Code Style Standards (SOP-006)
 

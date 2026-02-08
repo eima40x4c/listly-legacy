@@ -64,7 +64,7 @@
 | 002 | Repository Setup       | ✅     | `.gitignore`, `README.md`, `CONTRIBUTING.md`, `.github/pull_request_template.md`                                 | Complete - Git initialized, conventional commits documented |
 | 003 | Project Structure      | ✅     | `src/`, `tsconfig.json`, `/docs/architecture/project-structure.md`                                               | Complete - Next.js App Router structure with path aliases   |
 | 004 | Environment Setup      | ✅     | `.env.example`, `/docs/environment-variables.md`, `/docs/development-setup.md`, `docker-compose.yml`, `.vscode/` | Complete - Environment configuration with Docker services   |
-| 005 | Design Patterns        | ⬚      | `/docs/architecture/design-patterns.md`                                                                          |                                                             |
+| 005 | Design Patterns        | ✅     | `/docs/architecture/patterns.md`                                                                                 | Complete - Modular Monolith with feature-based organization |
 | 006 | Code Style Standards   | ⬚      | Linter/formatter configs                                                                                         |                                                             |
 
 ### Phase 1: Database
@@ -134,23 +134,23 @@
 
 ### Active SOP
 
-**SOP:** SOP-005
-**Title:** Design Patterns
+**SOP:** SOP-006
+**Title:** Code Style Standards
 **Status:** ⬚ Not Started
 
 ### Context Files to Read
 
 ```
-.sops/phase-0-initialization/SOP-005-design-patterns.md
-/docs/requirements.md
+.sops/phase-0-initialization/SOP-006-code-style-standards.md
 /docs/tech-stack.md
-/docs/architecture/project-structure.md
+/docs/architecture/patterns.md
 ```
 
 ### Expected Outputs
 
-- [ ] `/docs/architecture/design-patterns.md` — Architectural patterns and best practices
-- [ ] Code examples demonstrating pattern usage
+- [ ] ESLint configuration
+- [ ] Prettier configuration
+- [ ] Code style documentation
 
 ---
 
@@ -174,17 +174,17 @@ The following SOPs have been completed:
 - SOP-002: Repository Setup → Git initialized, documentation created
 - SOP-003: Project Structure → Folder structure, path aliases, documentation
 - SOP-004: Environment Setup → Environment variables, Docker, development scripts
+- SOP-005: Design Patterns → `/docs/architecture/patterns.md`
 
 ## Current Task
 
-Execute **SOP-005** (Design Patterns).
+Execute **SOP-006** (Code Style Standards).
 
 **Read these files:**
 
-1. `.sops/phase-0-initialization/SOP-005-design-patterns.md` — The procedure
-2. `/docs/requirements.md` — Project context
-3. `/docs/tech-stack.md` — Tech stack decisions
-4. `/docs/architecture/project-structure.md` — Project structure
+1. `.sops/phase-0-initialization/SOP-006-code-style-standards.md` — The procedure
+2. `/docs/tech-stack.md` — Tech stack decisions
+3. `/docs/architecture/patterns.md` — Design patterns
 
 **Refer to `AI-GUIDE.md` to attend to your responsibilities and for guidance on best practices.**
 **Follow the SOP's Procedure section step by step.**
@@ -349,6 +349,64 @@ Execute **SOP-005** (Design Patterns).
 - Feature flags enable progressive feature rollout
 - Security best practices enforced (secrets not committed, unique per environment)
 - Ready for SOP-005 (Design Patterns)
+
+### Session 5 — 2026-02-08
+
+**SOPs Completed:** SOP-005 (Design Patterns)
+**Files Created:**
+
+- `/docs/architecture/patterns.md` — Comprehensive design patterns documentation (130+ KB)
+  **Design Decisions:**
+- **Architectural Pattern:** Modular Monolith (selected over microservices)
+  - Best fit for small team size (1-2 developers)
+  - Critical time to market (MVP launch)
+  - Progressive scalability (Vercel handles horizontal scaling)
+  - Clear domain boundaries (lists, pantry, AI, collaboration)
+- **Application Layer:** Feature-Based Organization
+  - Features organized in `src/features/` with self-contained modules
+  - Each feature contains: components/, hooks/, services/, types.ts
+  - Clear dependency flow: App Router → Features → Lib/Shared
+- **Data Access:** Repository Pattern
+  - Centralized database operations in `src/lib/repositories/`
+  - Clean interface for Prisma queries
+  - Easy to mock for testing
+  - Example repositories: list.repository.ts, item.repository.ts, user.repository.ts
+- **Business Logic:** Service Pattern
+  - Feature-specific services in `src/features/[feature]/services/`
+  - Encapsulates complex workflows (e.g., complete shopping trip)
+  - Coordinates multiple repositories and external services
+  - Example: listService.createList(), listService.addItem(), listService.shareList()
+- **React State:** Custom Hooks Pattern
+  - Reusable stateful logic in hooks (useShoppingList, useRealtimeList)
+  - Separates data fetching from UI components
+  - React Query integration for server state management
+    **Component Patterns:**
+- **Container/Presenter:** Separates logic (Container) from UI (Presenter)
+- **Compound Components:** Flexible component APIs with shared context (e.g., Card.Header, Card.Body)
+- **Render Props:** Share code via function props for customizable rendering
+  **Additional Patterns:**
+- **Factory Pattern:** Object creation for notifications (email, push)
+- **Strategy Pattern:** Interchangeable algorithms for AI suggestions
+- **Custom Error Classes:** Structured error handling (NotFoundError, UnauthorizedError, ValidationError)
+  **Documentation Includes:**
+- Architectural pattern evaluation and decision matrix
+- Complete feature-based folder structure with 6 feature modules
+- Repository pattern implementation with base interfaces
+- Service pattern implementation with real-world examples
+- Custom hooks implementation with React Query
+- Component patterns with TypeScript code examples
+- Factory and Strategy patterns for flexible implementations
+- Error handling patterns with custom error classes
+- Testing patterns for repositories and services
+- Pattern selection guidelines (when to use each pattern)
+- Anti-patterns to avoid (God components, prop drilling, etc.)
+  **Notes:**
+- 1000+ lines of comprehensive pattern documentation
+- Modular Monolith allows future extraction to microservices if needed
+- Feature-based organization aligns with Next.js 14 App Router
+- Repository + Service pattern creates clean separation of concerns
+- All patterns include TypeScript examples specific to Listly domain
+- Ready for SOP-006 (Code Style Standards)
 
 ---
 
