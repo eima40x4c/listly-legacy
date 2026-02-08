@@ -58,7 +58,7 @@
 |-----|-------|--------|-----------------|-------|
 | 000 | Requirements Gathering | ✅ | `/docs/requirements.md` | Complete |
 | 001 | Tech Stack Selection | ✅ | `/docs/tech-stack.md` | Complete - Selected Next.js, PostgreSQL, Supabase |
-| 002 | Repository Setup | ⬚ | `README.md`, `.gitignore` | |
+| 002 | Repository Setup | ✅ | `.gitignore`, `README.md`, `CONTRIBUTING.md`, `.github/pull_request_template.md` | Complete - Git initialized, conventional commits documented |
 | 003 | Project Structure | ⬚ | Folder structure | |
 | 004 | Environment Setup | ⬚ | `.env.example`, `/docs/setup.md` | |
 | 005 | Design Patterns | ⬚ | `/docs/architecture/design-patterns.md` | |
@@ -130,26 +130,25 @@
 
 ### Active SOP
 
-**SOP:** SOP-002  
-**Title:** Repository Setup  
+**SOP:** SOP-003  
+**Title:** Project Structure  
 **Status:** ⬚ Not Started
 
 ### Context Files to Read
 
 ```
-.sops/phase-0-initialization/SOP-002-repository-setup.md    # The procedure
-/docs/requirements.md                                        # Project context
-/docs/tech-stack.md                                         # Tech stack decisions
+.sops/phase-0-initialization/SOP-003-project-structure.md
+/docs/requirements.md
+/docs/tech-stack.md
 ```
 
 ### Expected Outputs
 
-- [ ] `README.md`
-- [ ] `.gitignore`
-- [ ] `CONTRIBUTING.md`
-- [ ] `.github/pull_request_template.md`
-- [ ] Repository pushed to remote
-- [ ] Branch protection configured
+- [ ] Next.js folder structure with `src/` directory
+- [ ] Component directories organized by feature
+- [ ] API routes structure
+- [ ] Prisma schema placeholder
+- [ ] `/docs/architecture/folder-structure.md`
 
 ---
 
@@ -169,13 +168,14 @@ I'm working on Listly - Smart Shopping Companion: Mobile-first PWA for smart sho
 The following SOPs have been completed:
 - SOP-000: Requirements → `/docs/requirements.md`
 - SOP-001: Tech Stack Selection → `/docs/tech-stack.md`
+- SOP-002: Repository Setup → Git initialized, documentation created
 
 ## Current Task
 
-Execute **SOP-002** (Repository Setup).
+Execute **SOP-003** (Project Structure).
 
 **Read these files:**
-1. `.sops/phase-0-initialization/SOP-002-repository-setup.md` — The procedure
+1. `.sops/phase-0-initialization/SOP-003-project-structure.md` — The procedure
 2. `/docs/requirements.md` — Project context
 3. `/docs/tech-stack.md` — Tech stack decisions
 
@@ -201,9 +201,13 @@ Execute **SOP-002** (Repository Setup).
 
 ### Session 2 — 2026-02-08
 
-**SOPs Completed:** SOP-001 (Tech Stack Selection)  
+**SOPs Completed:** SOP-001 (Tech Stack Selection), SOP-002 (Repository Setup)  
 **Files Created:**
 - `/docs/tech-stack.md` — Comprehensive tech stack documentation with decision matrices and rationale
+- `.gitignore` — Configured for Next.js/TypeScript with PWA support
+- `README.md` — Project overview, features, setup instructions, and tech stack summary
+- `CONTRIBUTING.md` — Contribution guidelines with commit conventions and code style standards
+- `.github/pull_request_template.md` — Structured PR template for consistent reviews
 **Tech Stack Summary:**
 - **Frontend:** Next.js 14 + React 18 + TypeScript
 - **Styling:** Tailwind CSS + shadcn/ui
@@ -214,12 +218,18 @@ Execute **SOP-002** (Repository Setup).
 - **State Management:** Zustand
 - **PWA:** next-pwa
 - **Hosting:** Vercel (frontend) + Supabase (database)
+**Git Setup:**
+- Initialized Git repository with `main` as default branch
+- Implemented Conventional Commits format (feat, fix, docs, chore, etc.)
+- Branch naming convention: feature/, fix/, docs/, chore/, refactor/, test/
+- Initial commit: 375dff4 "chore: initial project setup with documentation and git conventions"
 **Notes:**
 - Selected T3 Stack pattern (Next.js, TypeScript, Prisma) with Supabase for real-time collaboration
 - Cost-optimized for MVP: ~$8/month (only Apple Developer Program), scales to ~$100/month at 500 users
 - PWA-first approach with offline support via service workers and IndexedDB
 - Real-time collaboration via Supabase Realtime (CDC from PostgreSQL)
 - All major categories evaluated with decision matrices: frontend, database, auth, real-time, state management
+- Repository ready for development with clear documentation and contribution guidelines
 
 ---
 
