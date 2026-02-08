@@ -8,13 +8,13 @@ Complete guide for setting up the Listly development environment locally.
 
 Before starting, ensure you have the following installed:
 
-| Tool | Minimum Version | Download |
-|------|----------------|----------|
-| **Node.js** | 18.0.0 or higher | [nodejs.org](https://nodejs.org/) |
-| **pnpm** | 8.0.0 or higher | `npm install -g pnpm` |
-| **Docker** | Latest stable | [docs.docker.com/get-docker](https://docs.docker.com/get-docker/) |
-| **Docker Compose** | Latest stable | Included with Docker Desktop |
-| **Git** | Latest stable | [git-scm.com](https://git-scm.com/) |
+| Tool               | Minimum Version  | Download                                                          |
+| ------------------ | ---------------- | ----------------------------------------------------------------- |
+| **Node.js**        | 18.0.0 or higher | [nodejs.org](https://nodejs.org/)                                 |
+| **pnpm**           | 8.0.0 or higher  | `npm install -g pnpm`                                             |
+| **Docker**         | Latest stable    | [docs.docker.com/get-docker](https://docs.docker.com/get-docker/) |
+| **Docker Compose** | Latest stable    | Included with Docker Desktop                                      |
+| **Git**            | Latest stable    | [git-scm.com](https://git-scm.com/)                               |
 
 ### Verify Installation
 
@@ -37,10 +37,11 @@ git clone <repository-url>
 cd listly
 
 # Run automated setup
-pnpm setup
+pnpm dev:setup
 ```
 
 This script will:
+
 - ✅ Check for required tools
 - ✅ Install pnpm dependencies
 - ✅ Create `.env` from `.env.example`
@@ -99,6 +100,7 @@ docker-compose ps
 ```
 
 **Expected output:**
+
 ```
 NAME               STATUS      PORTS
 listly_db         Up          0.0.0.0:5432->5432/tcp
@@ -125,6 +127,7 @@ pnpm dev
 ```
 
 The app will be available at:
+
 - **App:** [http://localhost:3000](http://localhost:3000)
 - **API:** [http://localhost:3000/api](http://localhost:3000/api)
 
@@ -152,6 +155,7 @@ docker-compose --profile tools up -d
 ```
 
 Access tools at:
+
 - **Adminer** (PostgreSQL UI): [http://localhost:8080](http://localhost:8080)
 - **Redis Commander**: [http://localhost:8081](http://localhost:8081)
 - **MailHog** (Email testing): [http://localhost:8025](http://localhost:8025)
@@ -162,51 +166,51 @@ Access tools at:
 
 ### Development
 
-| Script | Description |
-|--------|-------------|
-| `pnpm dev` | Start development server with hot reload |
-| `pnpm build` | Build production bundle |
-| `pnpm start` | Start production server (after build) |
-| `pnpm setup` | Run automated environment setup |
+| Script          | Description                              |
+| --------------- | ---------------------------------------- |
+| `pnpm dev`      | Start development server with hot reload |
+| `pnpm build`    | Build production bundle                  |
+| `pnpm start`    | Start production server (after build)    |
+| `pnpm dev:setup`| Run automated environment setup          |
 
 ### Code Quality
 
-| Script | Description |
-|--------|-------------|
-| `pnpm lint` | Check code for linting errors |
-| `pnpm lint:fix` | Auto-fix linting errors |
-| `pnpm format` | Format code with Prettier |
+| Script              | Description                              |
+| ------------------- | ---------------------------------------- |
+| `pnpm lint`         | Check code for linting errors            |
+| `pnpm lint:fix`     | Auto-fix linting errors                  |
+| `pnpm format`       | Format code with Prettier                |
 | `pnpm format:check` | Check formatting without modifying files |
-| `pnpm type-check` | Run TypeScript type checking |
+| `pnpm type-check`   | Run TypeScript type checking             |
 
 ### Database
 
-| Script | Description |
-|--------|-------------|
-| `pnpm db:migrate` | Run database migrations |
-| `pnpm db:push` | Push schema changes without migration |
-| `pnpm db:seed` | Seed database with sample data |
-| `pnpm db:studio` | Open Prisma Studio (database UI) |
-| `pnpm db:generate` | Generate Prisma Client |
-| `pnpm db:reset` | Reset database and re-run migrations |
+| Script             | Description                           |
+| ------------------ | ------------------------------------- |
+| `pnpm db:migrate`  | Run database migrations               |
+| `pnpm db:push`     | Push schema changes without migration |
+| `pnpm db:seed`     | Seed database with sample data        |
+| `pnpm db:studio`   | Open Prisma Studio (database UI)      |
+| `pnpm db:generate` | Generate Prisma Client                |
+| `pnpm db:reset`    | Reset database and re-run migrations  |
 
 ### Docker
 
-| Script | Description |
-|--------|-------------|
-| `pnpm docker:up` | Start Docker containers |
-| `pnpm docker:down` | Stop and remove containers |
-| `pnpm docker:logs` | View container logs (follow mode) |
-| `pnpm docker:tools` | Start optional development tools |
+| Script              | Description                       |
+| ------------------- | --------------------------------- |
+| `pnpm docker:up`    | Start Docker containers           |
+| `pnpm docker:down`  | Stop and remove containers        |
+| `pnpm docker:logs`  | View container logs (follow mode) |
+| `pnpm docker:tools` | Start optional development tools  |
 
 ### Testing
 
-| Script | Description |
-|--------|-------------|
-| `pnpm test` | Run unit tests |
-| `pnpm test:watch` | Run tests in watch mode |
-| `pnpm test:coverage` | Run tests with coverage report |
-| `pnpm test:e2e` | Run end-to-end tests with Playwright |
+| Script               | Description                          |
+| -------------------- | ------------------------------------ |
+| `pnpm test`          | Run unit tests                       |
+| `pnpm test:watch`    | Run tests in watch mode              |
+| `pnpm test:coverage` | Run tests with coverage report       |
+| `pnpm test:e2e`      | Run end-to-end tests with Playwright |
 
 ---
 
@@ -262,6 +266,7 @@ listly/
 **Problem:** Can't connect to PostgreSQL
 
 **Solutions:**
+
 ```bash
 # Check if Docker is running
 docker ps
@@ -281,6 +286,7 @@ docker-compose exec postgres pg_isready -U postgres
 **Problem:** Port 3000 is already in use
 
 **Solutions:**
+
 ```bash
 # Option 1: Change port in .env
 PORT=3001
@@ -294,6 +300,7 @@ lsof -ti:3000 | xargs kill -9
 **Problem:** Migration fails or schema is out of sync
 
 **Solutions:**
+
 ```bash
 # Reset database (WARNING: deletes all data)
 pnpm db:reset
@@ -310,6 +317,7 @@ pnpm db:generate
 **Problem:** Dependency installation errors
 
 **Solutions:**
+
 ```bash
 # Clear pnpm cache
 pnpm store prune
@@ -324,6 +332,7 @@ pnpm install
 **Problem:** Container fails to start or exits immediately
 
 **Solutions:**
+
 ```bash
 # View detailed logs
 docker-compose logs -f postgres
@@ -340,6 +349,7 @@ docker-compose up -d --build
 **Problem:** App can't find environment variables
 
 **Solutions:**
+
 - Verify `.env` file exists in project root
 - Restart development server after changing `.env`
 - Check for typos in variable names
@@ -443,6 +453,7 @@ If you prefer not to use Docker:
    - Windows: Download from [postgresql.org](https://www.postgresql.org/download/)
 
 2. **Create database:**
+
    ```bash
    createdb listly
    ```
