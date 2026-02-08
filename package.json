@@ -2,6 +2,7 @@
   "name": "listly",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Smart Shopping Companion - Mobile-first PWA for smart shopping list management with real-time collaboration",
   "author": "Listly Team",
   "license": "MIT",
