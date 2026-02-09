@@ -1,0 +1,2157 @@
+openapi: 3.0.3
+
+info:
+  title: Listly API
+  description: |
+    ## Overview
+    RESTful API for Listly - Smart Shopping Companion. A mobile-first PWA for 
+    intelligent shopping list management with real-time collaboration, AI suggestions, 
+    and pantry tracking.
+
+    ## Authentication
+    This API uses Bearer token authentication (JWT). Include the token in the
+    `Authorization` header: `Bearer <your-token>`
+
+    **Token Expiry:** 24 hours  
+    **Refresh:** Use `/auth/refresh` endpoint
+
+    ## Rate Limiting
+    - **Authenticated requests:** 1000 requests/hour
+    - **Unauthenticated requests:** 100 requests/hour
+
+    Rate limit information is returned in response headers:
+    - `X-RateLimit-Limit`
+    - `X-RateLimit-Remaining`
+    - `X-RateLimit-Reset`
+
+    ## Error Handling
+    All errors follow the standard error response format:
+
+    ```json
+    {
+      "success": false,
+      "error": {
+        "code": "ERROR_CODE",
+        "message": "Human-readable message",
+        "details": [/* optional field errors */]
+      }
+    }
+    ```
+
+    ## Pagination
+    List endpoints support pagination using `page` and `limit` query parameters.
+    Response includes `meta` object with pagination details.
+
+    ## Real-Time Updates
+    Real-time collaboration is handled via WebSocket connections (see `/ws` endpoint).
+
+  version: 1.0.0
+  contact:
+    name: Listly API Support
+    email: support@listly.app
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development
+  - url: https://staging-api.listly.app/v1
+    description: Staging environment
+  - url: https://api.listly.app/v1
+    description: Production
+
+tags:
+  - name: System
+    description: Health and system endpoints
+  - name: Authentication
+    description: User authentication and OAuth
+  - name: Users
+    description: User profile and preferences
+  - name: Shopping Lists
+    description: Shopping list CRUD operations
+  - name: List Items
+    description: Item management within lists
+  - name: Collaborators
+    description: List sharing and collaboration
+  - name: Categories
+    description: Item categories and organization
+  - name: Stores
+    description: Store locations and details
+  - name: Pantry
+    description: Pantry inventory management
+  - name: Recipes
+    description: Recipe storage and import
+  - name: Meal Plans
+    description: Meal planning and list generation
+  - name: History
+    description: Purchase history and analytics
+  - name: AI
+    description: AI-powered suggestions and categorization
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login or /auth/oauth
+
+  schemas:
+    # ========================================================================
+    # Standard Response Wrappers
+    # ========================================================================
+
+    SuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          description: Response payload
+        meta:
+          type: object
+          description: Metadata (pagination, etc.)
+          properties:
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 20
+            total:
+              type: integer
+              example: 100
+            totalPages:
+              type: integer
+              example: 5
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Human-readable error message
+              example: Invalid input data
+            details:
+              type: array
+              description: Field-level validation errors
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    example: email
+                  message:
+                    type: string
+                    example: Must be a valid email address
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 100
+        totalPages:
+          type: integer
+          example: 5
+
+    # ========================================================================
+    # Domain Schemas
+    # ========================================================================
+
+    # --- User & Auth ---
+
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - provider
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: cuid
+          example: clx1234567890
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        name:
+          type: string
+          example: John Doe
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://example.com/avatar.jpg
+        provider:
+          type: string
+          enum: [EMAIL, GOOGLE, APPLE]
+          example: EMAIL
+        emailVerified:
+          type: boolean
+          example: true
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-02-09T12:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-02-09T12:00:00Z'
+
+    UserPreferences:
+      type: object
+      properties:
+        defaultBudgetWarning:
+          type: number
+          format: decimal
+          nullable: true
+          example: 100.00
+        defaultCurrency:
+          type: string
+          example: USD
+        notificationsEnabled:
+          type: boolean
+          example: true
+        locationReminders:
+          type: boolean
+          example: false
+        theme:
+          type: string
+          enum: [light, dark, system]
+          example: system
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+          example: newuser@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: SecurePass123!
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Jane Doe
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        expiresIn:
+          type: integer
+          description: Token expiry in seconds
+          example: 86400
+        user:
+          $ref: '#/components/schemas/User'
+
+    # --- Shopping Lists ---
+
+    ShoppingList:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: cuid
+          example: clxlist123
+        name:
+          type: string
+          example: Weekly Groceries
+        description:
+          type: string
+          nullable: true
+          example: Costco shopping trip
+        budget:
+          type: number
+          format: decimal
+          nullable: true
+          example: 150.00
+        status:
+          type: string
+          enum: [ACTIVE, COMPLETED, ARCHIVED]
+          example: ACTIVE
+        isTemplate:
+          type: boolean
+          example: false
+        color:
+          type: string
+          nullable: true
+          example: '#4CAF50'
+        icon:
+          type: string
+          nullable: true
+          example: shopping-cart
+        itemCount:
+          type: integer
+          example: 12
+        completedCount:
+          type: integer
+          example: 5
+        owner:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        store:
+          $ref: '#/components/schemas/StoreReference'
+        role:
+          type: string
+          enum: [owner, VIEWER, EDITOR, ADMIN]
+          example: owner
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateShoppingListRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Weekly Groceries
+        description:
+          type: string
+          maxLength: 500
+        budget:
+          type: number
+          format: decimal
+          minimum: 0
+        storeId:
+          type: string
+          format: cuid
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        icon:
+          type: string
+        isTemplate:
+          type: boolean
+          default: false
+
+    UpdateShoppingListRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        budget:
+          type: number
+          format: decimal
+        status:
+          type: string
+          enum: [ACTIVE, COMPLETED, ARCHIVED]
+        color:
+          type: string
+        icon:
+          type: string
+        storeId:
+          type: string
+
+    # --- List Items ---
+
+    ListItem:
+      type: object
+      required:
+        - id
+        - name
+        - quantity
+        - isChecked
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: cuid
+          example: clxitem123
+        name:
+          type: string
+          example: Milk
+        quantity:
+          type: number
+          format: decimal
+          example: 2
+        unit:
+          type: string
+          nullable: true
+          example: gallon
+        notes:
+          type: string
+          nullable: true
+          example: Get organic
+        isChecked:
+          type: boolean
+          example: false
+        priority:
+          type: integer
+          default: 0
+          example: 1
+        estimatedPrice:
+          type: number
+          format: decimal
+          nullable: true
+          example: 6.99
+        sortOrder:
+          type: integer
+          example: 0
+        category:
+          $ref: '#/components/schemas/CategoryReference'
+        addedBy:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        checkedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateListItemRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        quantity:
+          type: number
+          format: decimal
+          default: 1
+          minimum: 0.01
+        unit:
+          type: string
+        notes:
+          type: string
+        categoryId:
+          type: string
+          format: cuid
+        estimatedPrice:
+          type: number
+          format: decimal
+          minimum: 0
+        priority:
+          type: integer
+          minimum: 0
+
+    UpdateListItemRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        quantity:
+          type: number
+          format: decimal
+        unit:
+          type: string
+        notes:
+          type: string
+        isChecked:
+          type: boolean
+        categoryId:
+          type: string
+        estimatedPrice:
+          type: number
+        priority:
+          type: integer
+
+    BulkItemsRequest:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateListItemRequest'
+
+    # --- Collaborators ---
+
+    Collaborator:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+        role:
+          type: string
+          enum: [VIEWER, EDITOR, ADMIN]
+          example: EDITOR
+        joinedAt:
+          type: string
+          format: date-time
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            email:
+              type: string
+            name:
+              type: string
+            avatarUrl:
+              type: string
+
+    InviteCollaboratorRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [VIEWER, EDITOR, ADMIN]
+          default: EDITOR
+
+    # --- Categories ---
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+        name:
+          type: string
+          example: Dairy
+        slug:
+          type: string
+          example: dairy
+        description:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+          example: cheese
+        color:
+          type: string
+          nullable: true
+          example: '#FFEB3B'
+        isDefault:
+          type: boolean
+          example: true
+        sortOrder:
+          type: integer
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+
+    CategoryReference:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+
+    CreateCategoryRequest:
+      type: object
+      required:
+        - name
+        - slug
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        color:
+          type: string
+
+    # --- Stores ---
+
+    Store:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+        name:
+          type: string
+          example: Costco
+        chain:
+          type: string
+          nullable: true
+          example: Costco
+        address:
+          type: string
+          nullable: true
+          example: 123 Main St, City, State 12345
+        latitude:
+          type: number
+          format: decimal
+          nullable: true
+          example: 37.7749
+        longitude:
+          type: number
+          format: decimal
+          nullable: true
+          example: -122.4194
+        distance:
+          type: number
+          format: decimal
+          description: Distance from user location (km)
+          example: 2.5
+        createdAt:
+          type: string
+          format: date-time
+
+    StoreReference:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        chain:
+          type: string
+
+    # --- Pantry ---
+
+    PantryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+        name:
+          type: string
+          example: Milk
+        quantity:
+          type: number
+          format: decimal
+          example: 1
+        unit:
+          type: string
+          nullable: true
+          example: gallon
+        location:
+          type: string
+          nullable: true
+          enum: [fridge, freezer, pantry, cabinet]
+          example: fridge
+        barcode:
+          type: string
+          nullable: true
+        expirationDate:
+          type: string
+          format: date
+          nullable: true
+        purchaseDate:
+          type: string
+          format: date
+          nullable: true
+        purchasePrice:
+          type: number
+          format: decimal
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        isConsumed:
+          type: boolean
+          example: false
+        category:
+          $ref: '#/components/schemas/CategoryReference'
+        daysUntilExpiration:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreatePantryItemRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        quantity:
+          type: number
+          format: decimal
+        unit:
+          type: string
+        location:
+          type: string
+        barcode:
+          type: string
+        expirationDate:
+          type: string
+          format: date
+        purchaseDate:
+          type: string
+          format: date
+        purchasePrice:
+          type: number
+        categoryId:
+          type: string
+        notes:
+          type: string
+
+    # --- Recipes ---
+
+    Recipe:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+        title:
+          type: string
+          example: Spaghetti Carbonara
+        description:
+          type: string
+          nullable: true
+        instructions:
+          type: string
+        prepTime:
+          type: integer
+          description: Preparation time in minutes
+          nullable: true
+        cookTime:
+          type: integer
+          description: Cooking time in minutes
+          nullable: true
+        servings:
+          type: integer
+          nullable: true
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+          nullable: true
+        cuisine:
+          type: string
+          nullable: true
+          example: Italian
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+        sourceUrl:
+          type: string
+          format: uri
+          nullable: true
+        isPublic:
+          type: boolean
+          example: false
+        ingredientCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    RecipeIngredient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+        name:
+          type: string
+        quantity:
+          type: number
+          format: decimal
+        unit:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        sortOrder:
+          type: integer
+
+    CreateRecipeRequest:
+      type: object
+      required:
+        - title
+        - instructions
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        instructions:
+          type: string
+        prepTime:
+          type: integer
+        cookTime:
+          type: integer
+        servings:
+          type: integer
+        difficulty:
+          type: string
+        cuisine:
+          type: string
+        imageUrl:
+          type: string
+        ingredients:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - quantity
+            properties:
+              name:
+                type: string
+              quantity:
+                type: number
+              unit:
+                type: string
+              notes:
+                type: string
+
+    ImportRecipeRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          example: https://example-recipe.com/carbonara
+
+    # --- Meal Plans ---
+
+    MealPlan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+        mealType:
+          type: string
+          enum: [BREAKFAST, LUNCH, DINNER, SNACK]
+        date:
+          type: string
+          format: date-time
+        notes:
+          type: string
+          nullable: true
+        isCompleted:
+          type: boolean
+        recipe:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+            prepTime:
+              type: integer
+            cookTime:
+              type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateMealPlanRequest:
+      type: object
+      required:
+        - mealType
+        - date
+      properties:
+        mealType:
+          type: string
+          enum: [BREAKFAST, LUNCH, DINNER, SNACK]
+        date:
+          type: string
+          format: date
+        recipeId:
+          type: string
+          format: cuid
+        notes:
+          type: string
+
+    GenerateListFromMealPlanRequest:
+      type: object
+      required:
+        - startDate
+        - endDate
+        - listName
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        listName:
+          type: string
+        excludePantryItems:
+          type: boolean
+          default: true
+
+    # --- History & Analytics ---
+
+    ItemHistory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+        itemName:
+          type: string
+        quantity:
+          type: number
+          format: decimal
+        unit:
+          type: string
+          nullable: true
+        price:
+          type: number
+          format: decimal
+          nullable: true
+        action:
+          type: string
+          enum: [ADDED, CHECKED, UNCHECKED, REMOVED, PRICE_UPDATED]
+        store:
+          $ref: '#/components/schemas/StoreReference'
+        createdAt:
+          type: string
+          format: date-time
+
+    PriceHistory:
+      type: object
+      properties:
+        itemName:
+          type: string
+        priceHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              price:
+                type: number
+                format: decimal
+              store:
+                $ref: '#/components/schemas/StoreReference'
+              createdAt:
+                type: string
+                format: date-time
+        statistics:
+          type: object
+          properties:
+            averagePrice:
+              type: number
+            minPrice:
+              type: number
+            maxPrice:
+              type: number
+            lastPrice:
+              type: number
+
+    # --- AI Suggestions ---
+
+    AIItemSuggestion:
+      type: object
+      properties:
+        name:
+          type: string
+        reason:
+          type: string
+          example: You buy this every week
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.92
+        lastPurchased:
+          type: string
+          format: date-time
+          nullable: true
+
+    AICategorizationRequest:
+      type: object
+      required:
+        - itemName
+      properties:
+        itemName:
+          type: string
+          example: organic whole milk
+
+    AICategorizationResponse:
+      type: object
+      properties:
+        category:
+          $ref: '#/components/schemas/CategoryReference'
+        confidence:
+          type: number
+          format: float
+          example: 0.95
+
+  # ==========================================================================
+  # Reusable Parameters
+  # ==========================================================================
+
+  parameters:
+    PathId:
+      name: id
+      in: path
+      required: true
+      description: Resource ID (CUID)
+      schema:
+        type: string
+        format: cuid
+
+    QueryPage:
+      name: page
+      in: query
+      description: Page number for pagination
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    QueryLimit:
+      name: limit
+      in: query
+      description: Items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    QuerySort:
+      name: sort
+      in: query
+      description: Field to sort by
+      schema:
+        type: string
+        example: createdAt
+
+    QueryOrder:
+      name: order
+      in: query
+      description: Sort order
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+
+    QuerySearch:
+      name: q
+      in: query
+      description: Search query
+      schema:
+        type: string
+
+  # ==========================================================================
+  # Reusable Responses
+  # ==========================================================================
+
+  responses:
+    BadRequest:
+      description: Invalid request data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: VALIDATION_ERROR
+              message: Invalid input data
+              details:
+                - field: email
+                  message: Must be a valid email address
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: UNAUTHORIZED
+              message: Authentication required
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: FORBIDDEN
+              message: You do not have permission to perform this action
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: NOT_FOUND
+              message: Resource not found
+
+    Conflict:
+      description: Resource conflict or duplicate
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: CONFLICT
+              message: Resource already exists
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: RATE_LIMIT_EXCEEDED
+              message: Too many requests. Please try again later.
+              retryAfter: 3600
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: INTERNAL_ERROR
+              message: An unexpected error occurred
+
+# ============================================================================
+# API ENDPOINTS
+# ============================================================================
+
+paths:
+  # --------------------------------------------------------------------------
+  # System
+  # --------------------------------------------------------------------------
+
+  /health:
+    get:
+      summary: Health check
+      description: Returns API health status and version
+      operationId: getHealth
+      tags: [System]
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: 1.0.0
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        example: up
+                      cache:
+                        type: string
+                        example: up
+
+  # --------------------------------------------------------------------------
+  # Authentication
+  # --------------------------------------------------------------------------
+
+  /auth/register:
+    post:
+      summary: Register new user
+      operationId: registerUser
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      summary: Authenticate user
+      operationId: loginUser
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      data:
+                        $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      summary: Logout user
+      operationId: logoutUser
+      tags: [Authentication]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Logout successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      summary: Get current user
+      operationId: getCurrentUser
+      tags: [Authentication]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # --------------------------------------------------------------------------
+  # Users
+  # --------------------------------------------------------------------------
+
+  /users/me:
+    get:
+      summary: Get user profile
+      operationId: getUserProfile
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    patch:
+      summary: Update user profile
+      operationId: updateUserProfile
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                avatarUrl:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      summary: Delete user account
+      operationId: deleteUserAccount
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Account deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me/preferences:
+    get:
+      summary: Get user preferences
+      operationId: getUserPreferences
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User preferences
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserPreferences'
+
+    patch:
+      summary: Update user preferences
+      operationId: updateUserPreferences
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferences'
+      responses:
+        '200':
+          description: Preferences updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserPreferences'
+
+  # --------------------------------------------------------------------------
+  # Shopping Lists
+  # --------------------------------------------------------------------------
+
+  /lists:
+    get:
+      summary: Get user's shopping lists
+      operationId: getShoppingLists
+      tags: [Shopping Lists]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/QueryPage'
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QuerySort'
+        - $ref: '#/components/parameters/QueryOrder'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, COMPLETED, ARCHIVED]
+      responses:
+        '200':
+          description: List of shopping lists
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ShoppingList'
+                      meta:
+                        $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      summary: Create shopping list
+      operationId: createShoppingList
+      tags: [Shopping Lists]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShoppingListRequest'
+      responses:
+        '201':
+          description: List created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ShoppingList'
+
+  /lists/{id}:
+    get:
+      summary: Get shopping list by ID
+      operationId: getShoppingListById
+      tags: [Shopping Lists]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+        - name: include
+          in: query
+          description: Include related resources
+          schema:
+            type: string
+            example: items,collaborators,store
+      responses:
+        '200':
+          description: Shopping list details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ShoppingList'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update shopping list
+      operationId: updateShoppingList
+      tags: [Shopping Lists]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateShoppingListRequest'
+      responses:
+        '200':
+          description: List updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ShoppingList'
+
+    delete:
+      summary: Delete shopping list
+      operationId: deleteShoppingList
+      tags: [Shopping Lists]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: List deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # --------------------------------------------------------------------------
+  # List Items
+  # --------------------------------------------------------------------------
+
+  /lists/{listId}/items:
+    get:
+      summary: Get list items
+      operationId: getListItems
+      tags: [List Items]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: listId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: isChecked
+          in: query
+          schema:
+            type: boolean
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/QuerySort'
+      responses:
+        '200':
+          description: List of items
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ListItem'
+
+    post:
+      summary: Add item to list
+      operationId: addListItem
+      tags: [List Items]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: listId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateListItemRequest'
+      responses:
+        '201':
+          description: Item added
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/ListItem'
+                          suggestions:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AIItemSuggestion'
+
+  /lists/{listId}/items/{itemId}:
+    patch:
+      summary: Update list item
+      operationId: updateListItem
+      tags: [List Items]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: listId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateListItemRequest'
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ListItem'
+
+    delete:
+      summary: Delete list item
+      operationId: deleteListItem
+      tags: [List Items]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: listId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Item deleted
+
+  /lists/{listId}/items/{itemId}/toggle:
+    patch:
+      summary: Toggle item checked status
+      operationId: toggleListItem
+      tags: [List Items]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: listId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Item toggled
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          isChecked:
+                            type: boolean
+                          checkedAt:
+                            type: string
+                            format: date-time
+
+  # --------------------------------------------------------------------------
+  # Categories
+  # --------------------------------------------------------------------------
+
+  /categories:
+    get:
+      summary: Get all categories
+      operationId: getCategories
+      tags: [Categories]
+      parameters:
+        - name: isDefault
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+
+  # --------------------------------------------------------------------------
+  # Stores
+  # --------------------------------------------------------------------------
+
+  /stores:
+    get:
+      summary: Search stores
+      operationId: searchStores
+      tags: [Stores]
+      parameters:
+        - $ref: '#/components/parameters/QuerySearch'
+        - name: latitude
+          in: query
+          schema:
+            type: number
+        - name: longitude
+          in: query
+          schema:
+            type: number
+        - name: radius
+          in: query
+          schema:
+            type: number
+            default: 10
+        - name: chain
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/QueryPage'
+        - $ref: '#/components/parameters/QueryLimit'
+      responses:
+        '200':
+          description: List of stores
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Store'
+
+  # --------------------------------------------------------------------------
+  # Pantry
+  # --------------------------------------------------------------------------
+
+  /pantry:
+    get:
+      summary: Get pantry inventory
+      operationId: getPantryItems
+      tags: [Pantry]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: location
+          in: query
+          schema:
+            type: string
+            enum: [fridge, freezer, pantry, cabinet]
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+        - name: expiringWithin
+          in: query
+          description: Days until expiration
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/QueryPage'
+        - $ref: '#/components/parameters/QueryLimit'
+      responses:
+        '200':
+          description: Pantry items
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PantryItem'
+
+    post:
+      summary: Add item to pantry
+      operationId: addPantryItem
+      tags: [Pantry]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePantryItemRequest'
+      responses:
+        '201':
+          description: Item added to pantry
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PantryItem'
+
+  # --------------------------------------------------------------------------
+  # Recipes
+  # --------------------------------------------------------------------------
+
+  /recipes:
+    get:
+      summary: Get user's recipes
+      operationId: getRecipes
+      tags: [Recipes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/QuerySearch'
+        - name: cuisine
+          in: query
+          schema:
+            type: string
+        - name: difficulty
+          in: query
+          schema:
+            type: string
+            enum: [easy, medium, hard]
+        - $ref: '#/components/parameters/QueryPage'
+        - $ref: '#/components/parameters/QueryLimit'
+      responses:
+        '200':
+          description: List of recipes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Recipe'
+
+    post:
+      summary: Create recipe
+      operationId: createRecipe
+      tags: [Recipes]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRecipeRequest'
+      responses:
+        '201':
+          description: Recipe created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Recipe'
+
+  /recipes/import:
+    post:
+      summary: Import recipe from URL
+      operationId: importRecipe
+      tags: [Recipes]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRecipeRequest'
+      responses:
+        '201':
+          description: Recipe imported
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Recipe'
+
+  # --------------------------------------------------------------------------
+  # Meal Plans
+  # --------------------------------------------------------------------------
+
+  /meal-plans:
+    get:
+      summary: Get meal plans
+      operationId: getMealPlans
+      tags: [Meal Plans]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: mealType
+          in: query
+          schema:
+            type: string
+            enum: [BREAKFAST, LUNCH, DINNER, SNACK]
+      responses:
+        '200':
+          description: Meal plans
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MealPlan'
+
+    post:
+      summary: Create meal plan entry
+      operationId: createMealPlan
+      tags: [Meal Plans]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMealPlanRequest'
+      responses:
+        '201':
+          description: Meal plan created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MealPlan'
+
+  /meal-plans/generate-list:
+    post:
+      summary: Generate shopping list from meal plan
+      operationId: generateListFromMealPlan
+      tags: [Meal Plans]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateListFromMealPlanRequest'
+      responses:
+        '201':
+          description: Shopping list generated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          listId:
+                            type: string
+                          itemsAdded:
+                            type: integer
+                          itemsSkipped:
+                            type: integer
+                          list:
+                            $ref: '#/components/schemas/ShoppingList'
+
+  # --------------------------------------------------------------------------
+  # AI Suggestions
+  # --------------------------------------------------------------------------
+
+  /ai/categorize:
+    post:
+      summary: Auto-categorize item
+      operationId: categorizeItem
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AICategorizationRequest'
+      responses:
+        '200':
+          description: Item categorized
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AICategorizationResponse'

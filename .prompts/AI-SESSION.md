@@ -77,13 +77,13 @@
 
 ### Phase 2: Backend
 
-| SOP | Title          | Status | Output Location                      | Notes |
-| --- | -------------- | ------ | ------------------------------------ | ----- |
-| 200 | API Design     | ⬚      | `/docs/api/openapi.yaml`             |       |
-| 201 | Authentication | ⬚      | Auth module/routes                   |       |
-| 202 | Authorization  | ⬚      | `/docs/authorization.md`, middleware |       |
-| 203 | Error Handling | ⬚      | Error handler module                 |       |
-| 204 | Validation     | ⬚      | Validation schemas                   |       |
+| SOP | Title          | Status | Output Location                                    | Notes                                                                   |
+| --- | -------------- | ------ | -------------------------------------------------- | ----------------------------------------------------------------------- |
+| 200 | API Design     | ✅     | `/docs/api/openapi.yaml`, `/docs/api/endpoints.md` | Complete - Full REST API specification with 12 resources, OpenAPI 3.0.3 |
+| 201 | Authentication | ⬚      | Auth module/routes                                 |                                                                         |
+| 202 | Authorization  | ⬚      | `/docs/authorization.md`, middleware               |                                                                         |
+| 203 | Error Handling | ⬚      | Error handler module                               |                                                                         |
+| 204 | Validation     | ⬚      | Validation schemas                                 |                                                                         |
 
 ### Phase 3: Frontend
 
@@ -134,27 +134,27 @@
 
 ### Active SOP
 
-**SOP:** SOP-200
-**Title:** API Design
+**SOP:** SOP-201
+**Title:** Authentication
 **Status:** ⬚ Not Started
 
 ### Context Files to Read
 
 ```
-.sops/phase-2-backend/SOP-200-api-design.md
-.sops/templates/api-design-template.yaml
+.sops/phase-2-api-backend/SOP-201-authentication.md
 /docs/requirements.md
-/docs/database/schema.md
-/docs/architecture/patterns.md
+/docs/tech-stack.md
+/docs/api/openapi.yaml
 prisma/schema.prisma
-
 ```
 
 ### Expected Outputs
 
-- [ ] `/docs/api/openapi.yaml` — OpenAPI 3.1 specification
-- [ ] `/docs/api/README.md` — API documentation
-- [ ] API design patterns documented
+- [ ] Authentication implementation (NextAuth.js)
+- [ ] OAuth providers configured (Google, Apple)
+- [ ] JWT token handling
+- [ ] Auth middleware
+- [ ] Updated `.env.example` with auth variables
 
 ---
 
@@ -640,6 +640,76 @@ Execute **SOP-200** (API Design).
 - Comprehensive documentation with examples
 - Database migration status checked (migrations table doesn't exist yet - expected in fresh setup)
 - Ready for Phase 2 (Backend) — SOP-200 (API Design)
+
+### Session 10 — 2026-02-09
+
+**SOPs Completed:** SOP-200 (API Design)
+**Files Created:**
+
+- `/docs/api/endpoints.md` — Comprehensive API endpoint documentation (36KB)
+- `/docs/api/openapi.yaml` — OpenAPI 3.0.3 specification (37KB)
+
+**API Design:**
+
+- **12 Resources:** Authentication, Users, Shopping Lists, List Items, Collaborators, Categories, Stores, Pantry, Recipes, Meal Plans, History, AI
+- **60+ Endpoints:** Full CRUD operations for all resources with proper HTTP methods
+- **RESTful Conventions:** Proper URL structure, query parameters, HTTP status codes
+- **Authentication:** Bearer token (JWT) via Authorization header
+- **Rate Limiting:** 1000 req/hr (authenticated), 100 req/hr (unauthenticated)
+
+**Key Endpoint Groups:**
+
+- **Auth:** register, login, logout, me, OAuth (Google/Apple)
+- **Users:** profile management, preferences, favorites
+- **Shopping Lists:** CRUD, duplicate, status management
+- **List Items:** CRUD, bulk operations, toggle, reorder
+- **Collaborators:** invite, remove, role management
+- **Categories:** CRUD, default categories
+- **Stores:** search, location-based, favorites
+- **Pantry:** inventory management, expiration tracking, consume
+- **Recipes:** CRUD, import from URL, ingredients
+- **Meal Plans:** calendar, generate shopping list from meal plan
+- **History:** purchase history, price trends, spending analytics
+- **AI:** item suggestions, auto-categorization (Phase 3)
+
+**Response Format:**
+
+- Standard success wrapper: `{ success: true, data: {...}, meta: {...} }`
+- Standard error wrapper: `{ success: false, error: { code, message, details } }`
+- Pagination metadata: page, limit, total, totalPages
+- Consistent field naming: camelCase for JSON
+
+**OpenAPI Specification:**
+
+- **Version:** OpenAPI 3.0.3
+- **Components:** 40+ schemas, 10+ reusable parameters, 7 reusable responses
+- **Security:** Bearer token authentication defined
+- **Tags:** 12 endpoint categories for organization
+- **Examples:** Request/response examples for all endpoints
+- **Validation:** Schema-based validation with constraints
+- **Error Responses:** Standardized error handling for 400, 401, 403, 404, 409, 429, 500
+
+**Documentation Features:**
+
+- Complete endpoint reference with authentication requirements
+- Request/response examples for all endpoints
+- Query parameter documentation
+- HTTP status code usage guide
+- Rate limiting headers and policies
+- Pagination guide
+- Error response format
+- WebSocket/real-time preview (future)
+- Version strategy (v1 with 6-month deprecation policy)
+
+**Notes:**
+
+- API design supports all MVP features from requirements
+- Real-time collaboration endpoints ready for WebSocket implementation
+- AI endpoints defined but deferred to Phase 3
+- Comprehensive OpenAPI spec ready for Swagger UI and client generation
+- All endpoints follow SOP-200 REST conventions
+- Validation, authentication, and error handling patterns documented
+- Ready for SOP-201 (Authentication)
 
 ---
 
