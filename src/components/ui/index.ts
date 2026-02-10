@@ -24,6 +24,8 @@ export {
   cardVariants,
 } from './Card';
 export { Checkbox, type CheckboxProps } from './Checkbox';
+export { ErrorMessage } from './ErrorMessage';
 export { Input, type InputProps, inputVariants } from './Input';
 export { Label, type LabelProps } from './Label';
+export { Skeleton } from './Skeleton';
 export { Spinner, type SpinnerProps, spinnerVariants } from './Spinner';

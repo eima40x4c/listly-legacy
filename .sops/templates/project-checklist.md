@@ -214,10 +214,22 @@
 
 ### API Integration (SOP-302)
 
-- [ ] API client/wrapper created
-- [ ] Loading states handled
-- [ ] Error states handled
-- [ ] Caching strategy defined (if needed)
+- [x] API client/wrapper created (src/lib/api/client.ts)
+- [x] Loading states handled (Skeleton component)
+- [x] Error states handled (ErrorMessage component)
+- [x] Caching strategy defined (TanStack Query with 1min staleTime, 5min gcTime)
+- [x] Query client configured (src/lib/query-client.ts)
+- [x] Query provider integrated in root layout
+- [x] Query hooks created for all resources:
+  - [x] Shopping Lists (useLists, useList, useCreateList, useUpdateList, useDeleteList, useDuplicateList, useCompleteList, useArchiveList)
+  - [x] List Items (useListItems, useListItem, useCreateItem, useBulkAddItems, useUpdateItem, useCheckItem, useDeleteItem, useClearCompletedItems)
+  - [x] Categories (useCategories, useCategory, useCreateCategory, useUpdateCategory, useDeleteCategory, useReorderCategories)
+  - [x] Users (useCurrentUser, useUserPreferences, useUpdateUser, useUpdatePreferences, useDeleteUser)
+- [x] Query key factory pattern implemented for cache invalidation
+- [x] Server-side fetch utilities created (src/lib/api/server.ts with React cache)
+- [x] Type-safe API client with custom error handling
+- [x] Barrel exports for easy hook imports
+- [x] React Query DevTools configured for development
 
 ### Form Handling (SOP-303)
 

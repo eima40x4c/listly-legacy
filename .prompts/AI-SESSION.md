@@ -87,12 +87,12 @@
 
 ### Phase 3: Frontend
 
-| SOP | Title                  | Status | Output Location                                                                                                                                | Notes                                                                                                              |
-| --- | ---------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| 300 | Component Architecture | ✅     | `src/components/ui/`, `src/components/layout/`, `src/components/forms/`, `src/lib/utils.ts`, `docs/components/README.md`                       | Complete - Created 8 UI components, 3 layout components, 3 form components, barrel exports, and comprehensive docs |
-| 301 | Styling Standards      | ✅     | `tailwind.config.ts`, `src/app/globals.css`, `src/components/ThemeProvider.tsx`, `src/components/ThemeToggle.tsx`, `docs/styling-standards.md` | Complete - Tailwind configuration, theme variables, dark mode support, styling documentation                       |
-| 302 | API Integration        | ⬚      | API client module                                                                                                                              |                                                                                                                    |
-| 303 | Form Handling          | ⬚      | Form components/hooks                                                                                                                          |                                                                                                                    |
+| SOP | Title                  | Status | Output Location                                                                                                                                                                                                                       | Notes                                                                                                                |
+| --- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 300 | Component Architecture | ✅     | `src/components/ui/`, `src/components/layout/`, `src/components/forms/`, `src/lib/utils.ts`, `docs/components/README.md`                                                                                                              | Complete - Created 8 UI components, 3 layout components, 3 form components, barrel exports, and comprehensive docs   |
+| 301 | Styling Standards      | ✅     | `tailwind.config.ts`, `src/app/globals.css`, `src/components/ThemeProvider.tsx`, `src/components/ThemeToggle.tsx`, `docs/styling-standards.md`                                                                                        | Complete - Tailwind configuration, theme variables, dark mode support, styling documentation                         |
+| 302 | API Integration        | ✅     | `src/lib/query-client.ts`, `src/components/providers/QueryProvider.tsx`, `src/lib/api/client.ts`, `src/lib/api/server.ts`, `src/hooks/api/*.ts`, `src/components/ui/Skeleton`, `src/components/ui/ErrorMessage`, `src/app/layout.tsx` | Complete - TanStack Query setup, API client with error handling, query hooks for all resources, loading/error states |
+| 303 | Form Handling          | ⬚      | Form components/hooks                                                                                                                                                                                                                 |                                                                                                                      |
 
 ### Phase 4: AI Integration (If Applicable)
 
@@ -134,25 +134,28 @@
 
 ### Active SOP
 
-**SOP:** SOP-302
-**Title:** API Integration
+**SOP:** SOP-303
+**Title:** Form Handling
 **Status:** ⬚ Not Started
 
 ### Context Files to Read
 
 ```
-.sops/phase-3-frontend/SOP-302-api-integration.md
+.sops/phase-3-frontend/SOP-303-form-handling.md
 /docs/requirements.md
 /docs/tech-stack.md
-/docs/api/endpoints.md
+/src/lib/validation/schemas/
+/src/components/ui/
+/src/hooks/
 ```
 
 ### Expected Outputs
 
 - [ ] API client module with type-safe requests
-- [ ] Error handling and retry logic
-- [ ] Request/response interceptors
-- [ ] API hooks for data fetching
+- [ ] Form validation hooks
+- [ ] Controlled form components
+- [ ] Error display patterns
+- [ ] Form submission handle
 
 ---
 
@@ -179,20 +182,23 @@ The following SOPs have been completed:
 - Phase 2: Backend (SOPs 200-204)
   - API Design, Authentication, Authorization
   - Error Handling, Validation
-- Phase 3: Frontend (SOP-300, SOP-301)
+- Phase 3: Frontend (SOPs 300-302)
   - Component Architecture (14 production-ready components)
   - Styling Standards (Tailwind CSS configuration, dark mode support)
+  - API Integration (TanStack Query, API client with error handling, query hooks)
 
 ## Current Task
 
-Execute **SOP-302** (API Integration).
+Execute **SOP-303** (Form Handling).
 
 **Read these files:**
 
-1. `.sops/phase-3-frontend/SOP-302-api-integration.md` — The procedure
-2. `/docs/requirements.md` — Requirements
-3. `/docs/tech-stack.md` — Tech stack details
-4. `/docs/api/endpoints.md` — API specification
+1. .sops/phase-3-frontend/SOP-303-form-handling.md
+2. /docs/requirements.md
+3. /docs/tech-stack.md
+4. /src/lib/validation/schemas/
+5. /src/components/ui/
+6. /src/hooks/
 
 **Refer to `AI-GUIDE.md` to attend to your responsibilities and for guidance on best practices.**
 **Follow the SOP's Procedure section step by step.**
@@ -1052,6 +1058,60 @@ export const GET = withErrorHandling(async (request) => {
 - Existing components already use CVA and cn() utility
 - Configuration aligns with existing component patterns
 - Dark mode implementation follows Next.js best practices
+
+### Session 17 — 2026-02-10
+
+**SOPs Completed:** SOP-302 (API Integration)
+**API Integration:**
+
+- **Data Fetching Library:** TanStack Query (React Query) v5
+- **Strategy:** Server Components for initial load + TanStack Query for client-side mutations
+- **Query Client:** Configured with 1-minute staleTime, 5-minute gcTime, auto-refetch disabled
+
+**Query Hook Features:**
+
+- **Query Keys Factory:** Consistent query key structure for cache invalidation
+- **Type-Safe:** Full TypeScript support with inferred types from response schemas
+- **Optimistic Updates:** Support for optimistic UI updates on mutations
+- **Cache Invalidation:** Automatic cache invalidation on create/update/delete operations
+- **Filters:** Support for pagination, sorting, filtering on list queries
+- **Enabled Queries:** Conditional query execution based on parameters
+
+**API Client Features:**
+
+- **Error Handling:** Custom ApiClientError class with status and structured error data
+- **Base URL:** Environment-based API_BASE_URL configuration
+- **JSON Handling:** Automatic JSON serialization/deserialization
+- **No Content Support:** Handles 204 responses correctly
+- **Type Safety:** Generic types for request/response typing
+
+**Server-Side Utilities:**
+
+- **React Cache:** Deduplication for parallel requests
+- **Next.js Revalidation:** ISR support with revalidate and tags options
+- **Resource Functions:** getLists, getList, getListItems, getCategories, getCurrentUser, etc.
+- **Error Handling:** Graceful 404 handling, structured error responses
+
+**UI Components:**
+
+- **Skeleton:** Loading state with pulse animation, composable with className
+- **ErrorMessage:** Displays error with retry button, handles ApiClientError and generic errors
+- **Updated UI Index:** Added Skeleton and ErrorMessage to barrel exports
+
+**Root Layout:**
+
+- Integrated QueryProvider wrapper with React Query DevTools
+- Maintains ThemeProvider for dark mode support
+- Inter font with CSS variables
+- PWA metadata and manifest configuration
+
+**Notes:**
+
+- All query hooks follow consistent naming pattern (use\* for resources)
+- Query keys factory pattern enables precise cache invalidation
+- Server-side utilities use React cache() for request deduplication
+- Error handling consistent across client and server
+- Loading and error states standardized for reuse
 
 ---
 
