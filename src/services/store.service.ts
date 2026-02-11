@@ -11,6 +11,7 @@ import type { Prisma, Store, UserFavoriteStore } from '@prisma/client';
 
 import { prisma } from '@/lib/db';
 import { NotFoundError } from '@/lib/errors/AppError';
+import { StoreRepository } from '@/repositories';
 
 import type {
   ICreateStoreInput,
@@ -24,6 +25,12 @@ import type {
 
 export class StoreService implements IStoreService {
   readonly serviceName = 'StoreService';
+
+  private storeRepo: StoreRepository;
+
+  constructor() {
+    this.storeRepo = new StoreRepository();
+  }
 
   /**
    * Get all stores with pagination and filters
@@ -71,25 +78,14 @@ export class StoreService implements IStoreService {
    * Get store by ID
    */
   async getById(id: string): Promise<Store | null> {
-    return prisma.store.findUnique({
-      where: { id },
-    });
+    return this.storeRepo.findById(id);
   }
 
   /**
    * Search stores
    */
   async search(query: string, limit = 10): Promise<Store[]> {
-    return prisma.store.findMany({
-      where: {
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { chain: { contains: query, mode: 'insensitive' } },
-        ],
-      },
-      take: limit,
-      orderBy: { name: 'asc' },
-    });
+    return this.storeRepo.search(query, { take: limit });
   }
 
   /**
@@ -133,9 +129,7 @@ export class StoreService implements IStoreService {
    * Create a new store
    */
   async create(input: ICreateStoreInput): Promise<Store> {
-    return prisma.store.create({
-      data: input,
-    });
+    return this.storeRepo.create(input);
   }
 
   /**
@@ -147,10 +141,7 @@ export class StoreService implements IStoreService {
       throw new NotFoundError('Store not found');
     }
 
-    return prisma.store.update({
-      where: { id },
-      data,
-    });
+    return this.storeRepo.update(id, data);
   }
 
   /**
@@ -162,9 +153,7 @@ export class StoreService implements IStoreService {
       throw new NotFoundError('Store not found');
     }
 
-    await prisma.store.delete({
-      where: { id },
-    });
+    await this.storeRepo.delete(id);
   }
 
   /**
@@ -269,15 +258,7 @@ export class StoreService implements IStoreService {
    * Get stores by chain
    */
   async getByChain(chain: string): Promise<Store[]> {
-    return prisma.store.findMany({
-      where: {
-        chain: {
-          equals: chain,
-          mode: 'insensitive',
-        },
-      },
-      orderBy: { name: 'asc' },
-    });
+    return this.storeRepo.findByChain(chain);
   }
 
   /**

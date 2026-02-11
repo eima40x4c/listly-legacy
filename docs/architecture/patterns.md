@@ -119,12 +119,19 @@ src/
 │   ├── db.ts                     # Prisma client
 │   ├── auth.ts                   # NextAuth configuration
 │   ├── utils.ts                  # Utility functions
-│   ├── validations/              # Zod schemas
-│   └── repositories/             # Data access layer
-│       ├── base.repository.ts
-│       ├── list.repository.ts
-│       ├── item.repository.ts
-│       └── user.repository.ts
+│   └── validations/              # Zod schemas
+│
+├── repositories/                 # Data access layer (SOP-201)
+│   ├── interfaces/               # Repository contracts
+│   │   ├── list-repository.interface.ts
+│   │   ├── item-repository.interface.ts
+│   │   └── ...
+│   ├── base.repository.ts        # Base repository with transaction support
+│   ├── list.repository.ts        # List data access
+│   ├── item.repository.ts        # Item data access
+│   ├── user.repository.ts        # User data access
+│   ├── transaction.ts            # Transaction wrapper
+│   └── index.ts                  # Central export
 │
 ├── hooks/                        # Shared React hooks
 │   ├── useAuth.ts

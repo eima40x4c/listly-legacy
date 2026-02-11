@@ -15,6 +15,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '@/lib/errors/AppError';
+import { CategoryRepository } from '@/repositories';
 
 import type {
   ICategoryService,
@@ -27,14 +28,17 @@ import type {
 export class CategoryService implements ICategoryService {
   readonly serviceName = 'CategoryService';
 
+  private categoryRepo: CategoryRepository;
+
+  constructor() {
+    this.categoryRepo = new CategoryRepository();
+  }
+
   /**
    * Get all default categories
    */
   async getDefaults(): Promise<Category[]> {
-    return prisma.category.findMany({
-      where: { isDefault: true },
-      orderBy: { sortOrder: 'asc' },
-    });
+    return this.categoryRepo.findDefaults();
   }
 
   /**
@@ -63,9 +67,7 @@ export class CategoryService implements ICategoryService {
    * Get category by slug
    */
   async getBySlug(slug: string): Promise<Category | null> {
-    return prisma.category.findUnique({
-      where: { slug },
-    });
+    return this.categoryRepo.findBySlug(slug);
   }
 
   /**
@@ -78,11 +80,9 @@ export class CategoryService implements ICategoryService {
       throw new ConflictError('Category with this slug already exists');
     }
 
-    return prisma.category.create({
-      data: {
-        ...input,
-        isDefault: false,
-      },
+    return this.categoryRepo.create({
+      ...input,
+      isDefault: false,
     });
   }
 
@@ -90,9 +90,7 @@ export class CategoryService implements ICategoryService {
    * Update a category
    */
   async update(id: string, data: IUpdateCategoryInput): Promise<Category> {
-    const category = await prisma.category.findUnique({
-      where: { id },
-    });
+    const category = await this.categoryRepo.findById(id);
 
     if (!category) {
       throw new NotFoundError('Category not found');
@@ -103,19 +101,14 @@ export class CategoryService implements ICategoryService {
       throw new ValidationError('Cannot update default categories');
     }
 
-    return prisma.category.update({
-      where: { id },
-      data,
-    });
+    return this.categoryRepo.update(id, data);
   }
 
   /**
    * Delete a custom category
    */
   async delete(id: string): Promise<void> {
-    const category = await prisma.category.findUnique({
-      where: { id },
-    });
+    const category = await this.categoryRepo.findById(id);
 
     if (!category) {
       throw new NotFoundError('Category not found');
@@ -125,9 +118,7 @@ export class CategoryService implements ICategoryService {
       throw new ValidationError('Cannot delete default categories');
     }
 
-    await prisma.category.delete({
-      where: { id },
-    });
+    await this.categoryRepo.delete(id);
   }
 
   /**
@@ -179,16 +170,7 @@ export class CategoryService implements ICategoryService {
    * Search categories by name
    */
   async search(query: string): Promise<Category[]> {
-    return prisma.category.findMany({
-      where: {
-        name: {
-          contains: query,
-          mode: 'insensitive',
-        },
-      },
-      orderBy: { name: 'asc' },
-      take: 10,
-    });
+    return this.categoryRepo.search(query, 10);
   }
 
   /**
@@ -230,9 +212,7 @@ export class CategoryService implements ICategoryService {
     // Simple keyword matching
     const keywords = itemName.toLowerCase().split(' ');
 
-    const categories = await prisma.category.findMany({
-      where: { isDefault: true },
-    });
+    const categories = await this.categoryRepo.findDefaults();
 
     for (const category of categories) {
       const categoryWords = category.name.toLowerCase().split(' ');

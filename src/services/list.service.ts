@@ -15,6 +15,12 @@ import {
   NotFoundError,
   ValidationError,
 } from '@/lib/errors/AppError';
+import {
+  CollaborationRepository,
+  ItemRepository,
+  ListRepository,
+  withTransaction,
+} from '@/repositories';
 
 import type {
   ICreateListInput,
@@ -32,14 +38,23 @@ const MAX_LIST_NAME_LENGTH = 100;
 export class ListService implements IListService {
   readonly serviceName = 'ListService';
 
+  // Repository instances
+  private listRepo: ListRepository;
+  private itemRepo: ItemRepository;
+  private collaborationRepo: CollaborationRepository;
+
+  constructor() {
+    this.listRepo = new ListRepository();
+    this.itemRepo = new ItemRepository();
+    this.collaborationRepo = new CollaborationRepository();
+  }
+
   /**
    * Create a new shopping list
    */
   async create(userId: string, input: ICreateListInput): Promise<ShoppingList> {
     // Business rule: Enforce list limit
-    const existingCount = await prisma.shoppingList.count({
-      where: { ownerId: userId },
-    });
+    const existingCount = await this.listRepo.countByOwner(userId);
 
     if (existingCount >= MAX_LISTS_PER_USER) {
       throw new ValidationError(
@@ -55,18 +70,16 @@ export class ListService implements IListService {
     }
 
     // Create list with default values
-    return prisma.shoppingList.create({
-      data: {
-        name: input.name,
-        description: input.description,
-        budget: input.budget,
-        color: input.color,
-        icon: input.icon,
-        ownerId: userId,
-        storeId: input.storeId,
-        isTemplate: input.isTemplate || false,
-        status: 'ACTIVE',
-      },
+    return this.listRepo.create({
+      name: input.name,
+      description: input.description,
+      budget: input.budget,
+      color: input.color,
+      icon: input.icon,
+      owner: { connect: { id: userId } },
+      store: input.storeId ? { connect: { id: input.storeId } } : undefined,
+      isTemplate: input.isTemplate || false,
+      status: 'ACTIVE',
     });
   }
 
@@ -74,16 +87,14 @@ export class ListService implements IListService {
    * Get list by ID
    */
   async getById(id: string, userId: string): Promise<ShoppingList | null> {
-    const list = await prisma.shoppingList.findUnique({
-      where: { id },
-    });
+    const list = await this.listRepo.findById(id);
 
     if (!list) {
       return null;
     }
 
     // Business rule: User must have access
-    const hasAccess = await this.hasAccess(id, userId);
+    const hasAccess = await this.listRepo.hasAccess(id, userId);
     if (!hasAccess) {
       throw new ForbiddenError('You do not have access to this list');
     }
@@ -103,27 +114,20 @@ export class ListService implements IListService {
       return null;
     }
 
-    // Get aggregated metrics
-    const [itemStats, collaboratorCount] = await Promise.all([
-      prisma.listItem.aggregate({
-        where: { listId: id },
-        _count: { id: true },
-        _sum: { estimatedPrice: true },
-      }),
-      prisma.listCollaborator.count({
-        where: { listId: id },
-      }),
-    ]);
-
-    const checkedCount = await prisma.listItem.count({
-      where: { listId: id, isChecked: true },
-    });
+    // Get aggregated metrics using repositories
+    const [itemCount, checkedCount, estimatedTotal, collaboratorCount] =
+      await Promise.all([
+        this.itemRepo.countByList(id),
+        this.itemRepo.countCheckedByList(id),
+        this.itemRepo.getEstimatedTotalByList(id),
+        this.collaborationRepo.countByList(id),
+      ]);
 
     return {
       ...list,
-      itemCount: itemStats._count.id || 0,
+      itemCount,
       checkedCount,
-      estimatedTotal: Number(itemStats._sum.estimatedPrice || 0),
+      estimatedTotal,
       collaboratorCount,
     };
   }
@@ -160,7 +164,8 @@ export class ListService implements IListService {
       where.name = { contains: filters.search, mode: 'insensitive' };
     }
 
-    // Get lists and total count
+    // Get lists and total count (still using prisma for complex queries)
+    // TODO: Move to repository when complex query support is added
     const [lists, total] = await Promise.all([
       prisma.shoppingList.findMany({
         where,
@@ -173,29 +178,22 @@ export class ListService implements IListService {
       prisma.shoppingList.count({ where }),
     ]);
 
-    // Enrich with metadata
+    // Enrich with metadata using repositories
     const enrichedLists = await Promise.all(
       lists.map(async (list) => {
-        const [itemStats, collaboratorCount] = await Promise.all([
-          prisma.listItem.aggregate({
-            where: { listId: list.id },
-            _count: { id: true },
-            _sum: { estimatedPrice: true },
-          }),
-          prisma.listCollaborator.count({
-            where: { listId: list.id },
-          }),
-        ]);
-
-        const checkedCount = await prisma.listItem.count({
-          where: { listId: list.id, isChecked: true },
-        });
+        const [itemCount, checkedCount, estimatedTotal, collaboratorCount] =
+          await Promise.all([
+            this.itemRepo.countByList(list.id),
+            this.itemRepo.countCheckedByList(list.id),
+            this.itemRepo.getEstimatedTotalByList(list.id),
+            this.collaborationRepo.countByList(list.id),
+          ]);
 
         return {
           ...list,
-          itemCount: itemStats._count.id || 0,
+          itemCount,
           checkedCount,
-          estimatedTotal: Number(itemStats._sum.estimatedPrice || 0),
+          estimatedTotal,
           collaboratorCount,
         };
       })
@@ -227,15 +225,13 @@ export class ListService implements IListService {
 
     // Business rule: Only owner can update certain fields
     if (data.name || data.description || data.status) {
-      if (list.ownerId !== userId) {
+      const isOwner = await this.listRepo.isOwner(id, userId);
+      if (!isOwner) {
         throw new ForbiddenError('Only the list owner can update these fields');
       }
     }
 
-    return prisma.shoppingList.update({
-      where: { id },
-      data,
-    });
+    return this.listRepo.update(id, data);
   }
 
   /**
@@ -248,13 +244,12 @@ export class ListService implements IListService {
     }
 
     // Business rule: Only owner can delete
-    if (list.ownerId !== userId) {
+    const isOwner = await this.listRepo.isOwner(id, userId);
+    if (!isOwner) {
       throw new ForbiddenError('Only the list owner can delete this list');
     }
 
-    await prisma.shoppingList.delete({
-      where: { id },
-    });
+    await this.listRepo.delete(id);
   }
 
   /**
@@ -281,12 +276,9 @@ export class ListService implements IListService {
       throw new NotFoundError('List not found');
     }
 
-    return prisma.shoppingList.update({
-      where: { id },
-      data: {
-        status: 'COMPLETED',
-        completedAt: new Date(),
-      },
+    return this.listRepo.update(id, {
+      status: 'COMPLETED',
+      completedAt: new Date(),
     });
   }
 
@@ -325,30 +317,37 @@ export class ListService implements IListService {
       },
     });
 
-    // Create new list with items in a transaction
-    return prisma.$transaction(async (tx) => {
-      const newList = await tx.shoppingList.create({
-        data: {
-          name: newName,
-          description: originalList.description,
-          budget: originalList.budget,
-          color: originalList.color,
-          icon: originalList.icon,
-          ownerId: userId,
-          storeId: originalList.storeId,
-          status: 'ACTIVE',
-        },
+    // Create new list with items using transaction
+    return withTransaction(async ({ listRepo, itemRepo }) => {
+      const newList = await listRepo.create({
+        name: newName,
+        description: originalList.description,
+        budget: originalList.budget,
+        color: originalList.color,
+        icon: originalList.icon,
+        owner: { connect: { id: userId } },
+        store: originalList.storeId
+          ? { connect: { id: originalList.storeId } }
+          : undefined,
+        status: 'ACTIVE',
       });
 
       // Copy items
-      if (items.length > 0) {
-        await tx.listItem.createMany({
-          data: items.map((item) => ({
-            ...item,
-            listId: newList.id,
-            addedById: userId,
-            isChecked: false,
-          })),
+      for (const item of items) {
+        await itemRepo.create({
+          name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          notes: item.notes,
+          priority: item.priority,
+          estimatedPrice: item.estimatedPrice,
+          sortOrder: item.sortOrder,
+          isChecked: false,
+          list: { connect: { id: newList.id } },
+          addedBy: { connect: { id: userId } },
+          category: item.categoryId
+            ? { connect: { id: item.categoryId } }
+            : undefined,
         });
       }
 
@@ -396,14 +395,7 @@ export class ListService implements IListService {
    * Check if user has access to list
    */
   async hasAccess(listId: string, userId: string): Promise<boolean> {
-    const list = await prisma.shoppingList.findFirst({
-      where: {
-        id: listId,
-        OR: [{ ownerId: userId }, { collaborators: { some: { userId } } }],
-      },
-    });
-
-    return !!list;
+    return this.listRepo.hasAccess(listId, userId);
   }
 
   /**

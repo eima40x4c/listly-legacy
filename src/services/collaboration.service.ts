@@ -8,7 +8,6 @@
  */
 
 import type { CollaboratorRole, ListCollaborator } from '@prisma/client';
-import type { ShoppingList } from '@prisma/client';
 import { randomBytes } from 'crypto';
 
 import { prisma } from '@/lib/db';
@@ -17,6 +16,11 @@ import {
   NotFoundError,
   ValidationError,
 } from '@/lib/errors/AppError';
+import {
+  CollaborationRepository,
+  ListRepository,
+  UserRepository,
+} from '@/repositories';
 
 import type {
   IAcceptInvitationInput,
@@ -34,14 +38,22 @@ const _INVITATION_EXPIRY_DAYS = 7;
 export class CollaborationService implements ICollaborationService {
   readonly serviceName = 'CollaborationService';
 
+  private collabRepo: CollaborationRepository;
+  private listRepo: ListRepository;
+  private userRepo: UserRepository;
+
+  constructor() {
+    this.collabRepo = new CollaborationRepository();
+    this.listRepo = new ListRepository();
+    this.userRepo = new UserRepository();
+  }
+
   /**
    * Share a list with another user
    */
   async share(input: IShareListInput): Promise<void> {
     // Verify ownership
-    const list = await prisma.shoppingList.findUnique({
-      where: { id: input.listId },
-    });
+    const list = await this.listRepo.findById(input.listId);
 
     if (!list) {
       throw new NotFoundError('List not found');
@@ -52,9 +64,7 @@ export class CollaborationService implements ICollaborationService {
     }
 
     // Check collaborator limit
-    const collaboratorCount = await prisma.listCollaborator.count({
-      where: { listId: input.listId },
-    });
+    const collaboratorCount = await this.collabRepo.countByList(input.listId);
 
     if (collaboratorCount >= MAX_COLLABORATORS_PER_LIST) {
       throw new ValidationError(
@@ -63,9 +73,7 @@ export class CollaborationService implements ICollaborationService {
     }
 
     // Find target user
-    const targetUser = await prisma.user.findUnique({
-      where: { email: input.targetEmail },
-    });
+    const targetUser = await this.userRepo.findByEmail(input.targetEmail);
 
     if (!targetUser) {
       // TODO: Send invitation email to non-existent user
@@ -75,26 +83,20 @@ export class CollaborationService implements ICollaborationService {
     }
 
     // Check if already a collaborator
-    const existing = await prisma.listCollaborator.findUnique({
-      where: {
-        listId_userId: {
-          listId: input.listId,
-          userId: targetUser.id,
-        },
-      },
-    });
+    const existing = await this.collabRepo.findByListAndUser(
+      input.listId,
+      targetUser.id
+    );
 
     if (existing) {
       throw new ValidationError('User is already a collaborator on this list');
     }
 
     // Add collaborator
-    await prisma.listCollaborator.create({
-      data: {
-        listId: input.listId,
-        userId: targetUser.id,
-        role: input.role || 'EDITOR',
-      },
+    await this.collabRepo.create({
+      list: { connect: { id: input.listId } },
+      user: { connect: { id: targetUser.id } },
+      role: input.role || 'EDITOR',
     });
 
     // TODO: Send notification email
@@ -119,9 +121,7 @@ export class CollaborationService implements ICollaborationService {
     ownerId: string,
     collaboratorId: string
   ): Promise<void> {
-    const list = await prisma.shoppingList.findUnique({
-      where: { id: listId },
-    });
+    const list = await this.listRepo.findById(listId);
 
     if (!list) {
       throw new NotFoundError('List not found');
@@ -131,14 +131,15 @@ export class CollaborationService implements ICollaborationService {
       throw new ForbiddenError('Only the list owner can remove collaborators');
     }
 
-    await prisma.listCollaborator.delete({
-      where: {
-        listId_userId: {
-          listId,
-          userId: collaboratorId,
-        },
-      },
-    });
+    const collab = await this.collabRepo.findByListAndUser(
+      listId,
+      collaboratorId
+    );
+    if (!collab) {
+      throw new NotFoundError('Collaborator not found');
+    }
+
+    await this.collabRepo.delete(collab.id);
   }
 
   /**
@@ -150,9 +151,7 @@ export class CollaborationService implements ICollaborationService {
     collaboratorId: string,
     role: CollaboratorRole
   ): Promise<ListCollaborator> {
-    const list = await prisma.shoppingList.findUnique({
-      where: { id: listId },
-    });
+    const list = await this.listRepo.findById(listId);
 
     if (!list) {
       throw new NotFoundError('List not found');
@@ -164,42 +163,31 @@ export class CollaborationService implements ICollaborationService {
       );
     }
 
-    return prisma.listCollaborator.update({
-      where: {
-        listId_userId: {
-          listId,
-          userId: collaboratorId,
-        },
-      },
-      data: { role },
-    });
+    const collab = await this.collabRepo.findByListAndUser(
+      listId,
+      collaboratorId
+    );
+    if (!collab) {
+      throw new NotFoundError('Collaborator not found');
+    }
+
+    return this.collabRepo.updateRole(collab.id, role);
   }
 
   /**
    * Leave a shared list
    */
   async leaveList(listId: string, userId: string): Promise<void> {
-    const collaborator = await prisma.listCollaborator.findUnique({
-      where: {
-        listId_userId: {
-          listId,
-          userId,
-        },
-      },
-    });
+    const collaborator = await this.collabRepo.findByListAndUser(
+      listId,
+      userId
+    );
 
     if (!collaborator) {
       throw new NotFoundError('You are not a collaborator on this list');
     }
 
-    await prisma.listCollaborator.delete({
-      where: {
-        listId_userId: {
-          listId,
-          userId,
-        },
-      },
-    });
+    await this.collabRepo.delete(collaborator.id);
   }
 
   /**
@@ -215,58 +203,16 @@ export class CollaborationService implements ICollaborationService {
       throw new ForbiddenError('You do not have access to this list');
     }
 
-    const collaborators = await prisma.listCollaborator.findMany({
-      where: { listId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatarUrl: true,
-          },
-        },
-      },
-      orderBy: { joinedAt: 'asc' },
-    });
+    const collaborators = await this.collabRepo.findByList(listId);
 
-    // Map null to undefined for avatarUrl
-    return collaborators.map((collab) => ({
-      ...collab,
-      user: {
-        ...collab.user,
-        avatarUrl: collab.user.avatarUrl ?? undefined,
-      },
-    }));
+    return collaborators as ICollaboratorWithUser[];
   }
 
   /**
    * Get all lists shared with user
    */
-  async getSharedLists(userId: string): Promise<ShoppingList[]> {
-    const collaborations = await prisma.listCollaborator.findMany({
-      where: { userId },
-      include: {
-        list: {
-          include: {
-            owner: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { joinedAt: 'desc' },
-    });
-
-    return collaborations.map((c) => ({
-      ...c.list,
-      role: c.role,
-      joinedAt: c.joinedAt,
-    }));
+  async getSharedLists(userId: string): Promise<unknown[]> {
+    return this.collabRepo.findByUser(userId);
   }
 
   /**
@@ -384,9 +330,7 @@ export class CollaborationService implements ICollaborationService {
     listId: string,
     ownerId: string
   ): Promise<string> {
-    const list = await prisma.shoppingList.findUnique({
-      where: { id: listId },
-    });
+    const list = await this.listRepo.findById(listId);
 
     if (!list) {
       throw new NotFoundError('List not found');

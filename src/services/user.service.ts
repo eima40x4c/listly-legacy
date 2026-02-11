@@ -11,6 +11,7 @@ import type { User, UserPreferences } from '@prisma/client';
 
 import { prisma } from '@/lib/db';
 import { NotFoundError } from '@/lib/errors/AppError';
+import { UserRepository } from '@/repositories';
 
 import type {
   IUpdatePreferencesInput,
@@ -23,25 +24,25 @@ import type {
 export class UserService implements IUserService {
   readonly serviceName = 'UserService';
 
+  private userRepo: UserRepository;
+
+  constructor() {
+    this.userRepo = new UserRepository();
+  }
+
   /**
    * Get user by ID
    */
   async getById(id: string): Promise<IUserWithPreferences | null> {
-    return prisma.user.findUnique({
-      where: { id },
-      include: {
-        preferences: true,
-      },
-    });
+    const user = await this.userRepo.findByIdWithPreferences(id);
+    return user as IUserWithPreferences | null;
   }
 
   /**
    * Get user by email
    */
   async getByEmail(email: string): Promise<User | null> {
-    return prisma.user.findUnique({
-      where: { email },
-    });
+    return this.userRepo.findByEmail(email);
   }
 
   /**
@@ -53,10 +54,7 @@ export class UserService implements IUserService {
       throw new NotFoundError('User not found');
     }
 
-    return prisma.user.update({
-      where: { id },
-      data,
-    });
+    return this.userRepo.update(id, data);
   }
 
   /**
@@ -106,9 +104,7 @@ export class UserService implements IUserService {
     }
 
     // Cascade delete will handle related records
-    await prisma.user.delete({
-      where: { id: userId },
-    });
+    await this.userRepo.delete(userId);
   }
 
   /**
@@ -153,24 +149,7 @@ export class UserService implements IUserService {
     query: string,
     limit = 10
   ): Promise<Array<Pick<User, 'id' | 'email' | 'name' | 'avatarUrl'>>> {
-    const users = await prisma.user.findMany({
-      where: {
-        email: {
-          contains: query,
-          mode: 'insensitive',
-        },
-        isActive: true,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatarUrl: true,
-      },
-      take: limit,
-    });
-
-    return users;
+    return this.userRepo.searchByEmail(query, limit);
   }
 
   /**
@@ -185,10 +164,7 @@ export class UserService implements IUserService {
    * Verify user email
    */
   async verifyEmail(userId: string): Promise<User> {
-    return prisma.user.update({
-      where: { id: userId },
-      data: { emailVerified: true },
-    });
+    return this.userRepo.update(userId, { emailVerified: true });
   }
 
   /**

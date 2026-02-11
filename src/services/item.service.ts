@@ -15,6 +15,11 @@ import {
   NotFoundError,
   ValidationError,
 } from '@/lib/errors/AppError';
+import {
+  CategoryRepository,
+  ItemRepository,
+  ListRepository,
+} from '@/repositories';
 
 import type {
   IBulkCreateItemsInput,
@@ -64,14 +69,23 @@ const CATEGORY_PATTERNS: Record<string, string[]> = {
 export class ItemService implements IItemService {
   readonly serviceName = 'ItemService';
 
+  // Repository instances
+  private itemRepo: ItemRepository;
+  private listRepo: ListRepository;
+  private categoryRepo: CategoryRepository;
+
+  constructor() {
+    this.itemRepo = new ItemRepository();
+    this.listRepo = new ListRepository();
+    this.categoryRepo = new CategoryRepository();
+  }
+
   /**
    * Create a new item with auto-categorization
    */
   async create(input: ICreateItemInput): Promise<IItemCreateResult> {
     // Business rule: Enforce item limit per list
-    const existingCount = await prisma.listItem.count({
-      where: { listId: input.listId },
-    });
+    const existingCount = await this.itemRepo.countByList(input.listId);
 
     if (existingCount >= MAX_ITEMS_PER_LIST) {
       throw new ValidationError(
@@ -87,7 +101,10 @@ export class ItemService implements IItemService {
     }
 
     // Verify user has access to the list
-    const hasAccess = await this.checkListAccess(input.listId, input.addedById);
+    const hasAccess = await this.listRepo.hasAccess(
+      input.listId,
+      input.addedById
+    );
     if (!hasAccess) {
       throw new ForbiddenError('You do not have access to this list');
     }
@@ -100,9 +117,7 @@ export class ItemService implements IItemService {
     if (!categoryId) {
       const categorySlug = await this.autoCategorizе(input.name);
       if (categorySlug) {
-        const category = await prisma.category.findUnique({
-          where: { slug: categorySlug },
-        });
+        const category = await this.categoryRepo.findBySlug(categorySlug);
         if (category) {
           categoryId = category.id;
           autoCategorized = true;
@@ -111,26 +126,24 @@ export class ItemService implements IItemService {
       }
     }
 
-    // Get next sort order
+    // Get next sort order (still using prisma for aggregation)
     const maxOrder = await prisma.listItem.aggregate({
       where: { listId: input.listId },
       _max: { sortOrder: true },
     });
     const sortOrder = (maxOrder._max.sortOrder || 0) + 1;
 
-    const item = await prisma.listItem.create({
-      data: {
-        name: input.name,
-        quantity: input.quantity || 1,
-        unit: input.unit,
-        notes: input.notes,
-        estimatedPrice: input.estimatedPrice,
-        priority: input.priority || 0,
-        listId: input.listId,
-        addedById: input.addedById,
-        categoryId,
-        sortOrder,
-      },
+    const item = await this.itemRepo.create({
+      name: input.name,
+      quantity: input.quantity || 1,
+      unit: input.unit,
+      notes: input.notes,
+      estimatedPrice: input.estimatedPrice,
+      priority: input.priority || 0,
+      sortOrder,
+      list: { connect: { id: input.listId } },
+      addedBy: { connect: { id: input.addedById } },
+      category: categoryId ? { connect: { id: categoryId } } : undefined,
     });
 
     return {
@@ -199,52 +212,19 @@ export class ItemService implements IItemService {
    * Get item by ID
    */
   async getById(id: string, userId: string): Promise<IItemWithDetails | null> {
-    const item = await prisma.listItem.findUnique({
-      where: { id },
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            icon: true,
-            color: true,
-          },
-        },
-        addedBy: {
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
-          },
-        },
-      },
-    });
+    const item = await this.itemRepo.findByIdWithDetails(id);
 
     if (!item) {
       return null;
     }
 
     // Verify access
-    const hasAccess = await this.checkListAccess(item.listId, userId);
+    const hasAccess = await this.listRepo.hasAccess(item.listId, userId);
     if (!hasAccess) {
       throw new ForbiddenError('You do not have access to this item');
     }
 
-    return {
-      ...item,
-      category: item.category
-        ? {
-            ...item.category,
-            icon: item.category.icon ?? undefined,
-            color: item.category.color ?? undefined,
-          }
-        : undefined,
-      addedBy: {
-        ...item.addedBy,
-        avatarUrl: item.addedBy.avatarUrl ?? undefined,
-      },
-    };
+    return item as IItemWithDetails;
   }
 
   /**
@@ -256,52 +236,19 @@ export class ItemService implements IItemService {
     includeChecked = true
   ): Promise<IItemWithDetails[]> {
     // Verify access
-    const hasAccess = await this.checkListAccess(listId, userId);
+    const hasAccess = await this.listRepo.hasAccess(listId, userId);
     if (!hasAccess) {
       throw new ForbiddenError('You do not have access to this list');
     }
 
-    const items = await prisma.listItem.findMany({
-      where: {
-        listId,
-        ...(includeChecked ? {} : { isChecked: false }),
-      },
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            icon: true,
-            color: true,
-          },
-        },
-        addedBy: {
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
-          },
-        },
-      },
-      orderBy: [{ isChecked: 'asc' }, { sortOrder: 'asc' }],
-    });
+    const items = await this.itemRepo.findByListWithDetails(listId);
 
-    // Map to proper types (convert null to undefined)
-    return items.map((item) => ({
-      ...item,
-      category: item.category
-        ? {
-            ...item.category,
-            icon: item.category.icon ?? undefined,
-            color: item.category.color ?? undefined,
-          }
-        : undefined,
-      addedBy: {
-        ...item.addedBy,
-        avatarUrl: item.addedBy.avatarUrl ?? undefined,
-      },
-    }));
+    // Filter checked items if needed
+    if (!includeChecked) {
+      return items.filter((item) => !item.isChecked) as IItemWithDetails[];
+    }
+
+    return items as IItemWithDetails[];
   }
 
   /**
@@ -312,46 +259,37 @@ export class ItemService implements IItemService {
     userId: string,
     data: IUpdateItemInput
   ): Promise<ListItem> {
-    const item = await prisma.listItem.findUnique({
-      where: { id },
-    });
+    const item = await this.itemRepo.findById(id);
 
     if (!item) {
       throw new NotFoundError('Item not found');
     }
 
     // Verify access
-    const hasAccess = await this.checkListAccess(item.listId, userId);
+    const hasAccess = await this.listRepo.hasAccess(item.listId, userId);
     if (!hasAccess) {
       throw new ForbiddenError('You do not have access to this item');
     }
 
-    return prisma.listItem.update({
-      where: { id },
-      data,
-    });
+    return this.itemRepo.update(id, data);
   }
 
   /**
    * Delete an item
    */
   async delete(id: string, userId: string): Promise<void> {
-    const item = await prisma.listItem.findUnique({
-      where: { id },
-    });
+    const item = await this.itemRepo.findById(id);
 
     if (!item) {
       throw new NotFoundError('Item not found');
     }
 
-    const hasAccess = await this.checkListAccess(item.listId, userId);
+    const hasAccess = await this.listRepo.hasAccess(item.listId, userId);
     if (!hasAccess) {
       throw new ForbiddenError('You do not have access to this item');
     }
 
-    await prisma.listItem.delete({
-      where: { id },
-    });
+    await this.itemRepo.delete(id);
   }
 
   /**
@@ -362,15 +300,13 @@ export class ItemService implements IItemService {
     userId: string,
     input?: ICheckItemInput
   ): Promise<ListItem> {
-    const item = await prisma.listItem.findUnique({
-      where: { id },
-    });
+    const item = await this.itemRepo.findById(id);
 
     if (!item) {
       throw new NotFoundError('Item not found');
     }
 
-    const hasAccess = await this.checkListAccess(item.listId, userId);
+    const hasAccess = await this.listRepo.hasAccess(item.listId, userId);
     if (!hasAccess) {
       throw new ForbiddenError('You do not have access to this item');
     }
@@ -387,10 +323,7 @@ export class ItemService implements IItemService {
       updateData.estimatedPrice = input.actualPrice;
     }
 
-    return prisma.listItem.update({
-      where: { id },
-      data: updateData,
-    });
+    return this.itemRepo.update(id, updateData);
   }
 
   /**
@@ -401,9 +334,7 @@ export class ItemService implements IItemService {
     userId: string,
     input?: ICheckItemInput
   ): Promise<ListItem> {
-    const item = await prisma.listItem.findUnique({
-      where: { id },
-    });
+    const item = await this.itemRepo.findById(id);
 
     if (!item || item.isChecked) {
       if (!item) {
@@ -419,9 +350,7 @@ export class ItemService implements IItemService {
    * Mark item as unchecked
    */
   async uncheck(id: string, userId: string): Promise<ListItem> {
-    const item = await prisma.listItem.findUnique({
-      where: { id },
-    });
+    const item = await this.itemRepo.findById(id);
 
     if (!item || !item.isChecked) {
       if (!item) {
@@ -437,18 +366,21 @@ export class ItemService implements IItemService {
    * Complete shopping (check all items)
    */
   async completeList(listId: string, userId: string): Promise<void> {
-    const hasAccess = await this.checkListAccess(listId, userId);
+    const hasAccess = await this.listRepo.hasAccess(listId, userId);
     if (!hasAccess) {
       throw new ForbiddenError('You do not have access to this list');
     }
 
-    await prisma.listItem.updateMany({
-      where: { listId, isChecked: false },
-      data: {
+    // Get all unchecked items
+    const items = await this.itemRepo.findByList(listId);
+    const uncheckedIds = items.filter((i) => !i.isChecked).map((i) => i.id);
+
+    if (uncheckedIds.length > 0) {
+      await this.itemRepo.bulkUpdate(uncheckedIds, {
         isChecked: true,
         checkedAt: new Date(),
-      },
-    });
+      });
+    }
   }
 
   /**
@@ -476,20 +408,14 @@ export class ItemService implements IItemService {
     userId: string,
     itemIds: string[]
   ): Promise<void> {
-    const hasAccess = await this.checkListAccess(listId, userId);
+    const hasAccess = await this.listRepo.hasAccess(listId, userId);
     if (!hasAccess) {
       throw new ForbiddenError('You do not have access to this list');
     }
 
-    // Update sort order in transaction
-    await prisma.$transaction(
-      itemIds.map((itemId, index) =>
-        prisma.listItem.update({
-          where: { id: itemId },
-          data: { sortOrder: index },
-        })
-      )
-    );
+    // Convert to position updates
+    const updates = itemIds.map((id, index) => ({ id, sortOrder: index }));
+    await this.itemRepo.updatePositions(updates);
   }
 
   /**
@@ -500,9 +426,7 @@ export class ItemService implements IItemService {
     targetListId: string,
     userId: string
   ): Promise<ListItem> {
-    const item = await prisma.listItem.findUnique({
-      where: { id: itemId },
-    });
+    const item = await this.itemRepo.findById(itemId);
 
     if (!item) {
       throw new NotFoundError('Item not found');
@@ -510,21 +434,18 @@ export class ItemService implements IItemService {
 
     // Verify access to both lists
     const [hasSourceAccess, hasTargetAccess] = await Promise.all([
-      this.checkListAccess(item.listId, userId),
-      this.checkListAccess(targetListId, userId),
+      this.listRepo.hasAccess(item.listId, userId),
+      this.listRepo.hasAccess(targetListId, userId),
     ]);
 
     if (!hasSourceAccess || !hasTargetAccess) {
       throw new ForbiddenError('You do not have access to one or both lists');
     }
 
-    return prisma.listItem.update({
-      where: { id: itemId },
-      data: {
-        listId: targetListId,
-        isChecked: false,
-        checkedAt: null,
-      },
+    return this.itemRepo.update(itemId, {
+      list: { connect: { id: targetListId } },
+      isChecked: false,
+      checkedAt: null,
     });
   }
 
@@ -532,37 +453,15 @@ export class ItemService implements IItemService {
    * Get unchecked item count
    */
   async getUncheckedCount(listId: string): Promise<number> {
-    return prisma.listItem.count({
-      where: { listId, isChecked: false },
-    });
+    const total = await this.itemRepo.countByList(listId);
+    const checked = await this.itemRepo.countCheckedByList(listId);
+    return total - checked;
   }
 
   /**
    * Get estimated total price
    */
   async getEstimatedTotal(listId: string): Promise<number> {
-    const result = await prisma.listItem.aggregate({
-      where: { listId, isChecked: false },
-      _sum: { estimatedPrice: true },
-    });
-
-    return Number(result._sum.estimatedPrice || 0);
-  }
-
-  /**
-   * Check if user has access to list
-   */
-  private async checkListAccess(
-    listId: string,
-    userId: string
-  ): Promise<boolean> {
-    const list = await prisma.shoppingList.findFirst({
-      where: {
-        id: listId,
-        OR: [{ ownerId: userId }, { collaborators: { some: { userId } } }],
-      },
-    });
-
-    return !!list;
+    return this.itemRepo.getEstimatedTotalByList(listId);
   }
 }

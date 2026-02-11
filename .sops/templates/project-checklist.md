@@ -99,6 +99,34 @@
 
 ### Service Layer (SOP-200)
 
+- [x] Service classes created for all entities
+- [x] Business logic extracted from controllers
+- [x] Service interfaces defined
+- [x] Dependency injection configured
+- [x] Service layer documented
+
+### Repository Pattern (SOP-201)
+
+- [x] Repository interfaces created
+- [x] Base repository class implemented
+- [x] Concrete repository implementations:
+  - [x] ListRepository
+  - [x] ItemRepository
+  - [x] UserRepository
+  - [x] CategoryRepository
+  - [x] StoreRepository
+  - [x] CollaborationRepository
+- [x] Transaction wrapper created
+- [x] Repository layer documented
+- [x] Services refactored to use repositories:
+  - [x] ListService (partially refactored)
+  - [x] ItemService
+  - [x] CategoryService
+  - [x] StoreService
+  - [x] UserService
+  - [x] CollaborationService
+- [x] Unit tests for repositories added
+
 - [x] User stories mapped to service methods
 - [x] Service interfaces defined (8 interfaces with type-safe contracts)
 - [x] Service implementations created:
