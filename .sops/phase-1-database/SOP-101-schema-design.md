@@ -436,4 +436,4 @@ Execute SOP-101 (Schema Design):
 
 - **SOP-100:** Database Selection (database type)
 - **SOP-102:** Seed Data (initial data)
-- **SOP-200:** API Design (schema informs API)
+- **SOP-202:** API Design (schema informs API)

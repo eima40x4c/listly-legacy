@@ -18,7 +18,7 @@ Establish integration testing standards to verify that different parts of the sy
 
 - [ ] SOP-500 (Unit Testing) — testing framework configured
 - [ ] SOP-101 (Schema Design) — database schema defined
-- [ ] SOP-200 (API Design) — API routes implemented
+- [ ] SOP-202 (API Design) — API routes implemented
 
 ---
 
@@ -595,8 +595,9 @@ Execute SOP-501 (Integration Testing):
 ## Related SOPs
 
 - **SOP-500:** Unit Testing (isolated testing)
-- **SOP-200:** API Design (routes to test)
-- **SOP-201:** Authentication (auth testing)
+- **SOP-502:** E2E Testing (browser testing)
+- **SOP-202:** API Design (routes to test)
+- **SOP-203:** Authentication (auth testing)
 
 ---
 

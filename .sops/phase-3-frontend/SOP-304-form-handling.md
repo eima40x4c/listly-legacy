@@ -1,4 +1,4 @@
-# SOP-303: Form Handling
+# SOP-304: Form Handling
 
 ## Purpose
 
@@ -10,14 +10,14 @@ Implement consistent, user-friendly form handling with proper validation, error 
 
 - **Applies to:** All forms in the application
 - **Covers:** Form state, validation, error handling, submission
-- **Does not cover:** Backend validation (SOP-204), API design (SOP-200)
+- **Does not cover:** Backend validation (SOP-206), API design (SOP-202)
 
 ---
 
 ## Prerequisites
 
 - [ ] SOP-300 (Component Architecture) completed
-- [ ] SOP-204 (Validation) completed — Zod schemas exist
+- [ ] SOP-206 (Validation) completed — Zod schemas exist
 - [ ] UI form components created
 
 ---
@@ -812,7 +812,7 @@ Read:
 - `/docs/tech-stack.md` for framework
 - `src/lib/validation/schemas/` for existing Zod schemas
 
-Execute SOP-303 (Form Handling):
+Execute SOP-304 (Form Handling):
 1. Install react-hook-form and resolvers
 2. Create Form components
 3. Create Input, Select components
@@ -835,6 +835,6 @@ Execute SOP-303 (Form Handling):
 
 ## Related SOPs
 
-- **SOP-204:** Validation (Zod schemas)
+- **SOP-206:** Validation (Zod schemas)
 - **SOP-300:** Component Architecture (component patterns)
-- **SOP-302:** API Integration (mutation hooks)
+- **SOP-303:** API Integration (mutation hooks)

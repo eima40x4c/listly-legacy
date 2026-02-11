@@ -408,4 +408,4 @@ Execute SOP-006 (Code Style Standards):
 
 - **SOP-003:** Project Structure (file organization)
 - **SOP-005:** Design Patterns (code patterns)
-- **SOP-502:** Code Review (style in reviews)
+- \*\*SOP-503: Code Review (style in reviews)

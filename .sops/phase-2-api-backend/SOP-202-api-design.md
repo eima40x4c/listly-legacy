@@ -1,4 +1,4 @@
-# SOP-200: API Design
+# SOP-202: API Design
 
 ## Purpose
 
@@ -10,7 +10,7 @@ Design RESTful APIs that are consistent, intuitive, and well-documented. Good AP
 
 - **Applies to:** All projects with API endpoints
 - **Covers:** REST conventions, endpoint design, OpenAPI documentation
-- **Does not cover:** Authentication (SOP-201), Error handling (SOP-203)
+- **Does not cover:** Authentication (SOP-203), Error handling (SOP-205)
 
 ---
 
@@ -190,235 +190,54 @@ Create `/docs/api/endpoints.md`:
 
 ### 8. Create OpenAPI Specification
 
-Create `/docs/api/openapi.yaml`:
+> **📄 Template:** Copy [`.sops/templates/api-design-template.yaml`](../templates/api-design-template.yaml) to `/docs/api/openapi.yaml` and customize for your project.
+
+The template includes:
+
+- Server configuration (dev/prod)
+- Common security schemes (JWT Bearer)
+- Reusable response components (errors, pagination)
+- Example endpoint patterns
+
+**Basic structure overview:**
 
 ```yaml
 openapi: 3.0.3
 info:
   title: Project API
-  description: RESTful API for [Project Name]
   version: 1.0.0
 
 servers:
   - url: http://localhost:3000/api
-    description: Development server
-  - url: https://api.example.com
-    description: Production server
-
-tags:
-  - name: Auth
-    description: Authentication endpoints
-  - name: Users
-    description: User management
-  - name: Products
-    description: Product catalog
+    description: Development
 
 paths:
-  /products:
+  /resources:
     get:
-      tags: [Products]
-      summary: List products
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 20
-            maximum: 100
-        - name: category
-          in: query
-          schema:
-            type: string
-        - name: q
-          in: query
-          description: Search query
-          schema:
-            type: string
+      summary: List resources
       responses:
         '200':
-          description: List of products
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProductList'
-
+          description: Success
     post:
-      tags: [Products]
-      summary: Create product
-      security:
-        - bearerAuth: []
+      summary: Create resource
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateProduct'
+              $ref: '#/components/schemas/CreateResource'
       responses:
         '201':
-          description: Product created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /products/{id}:
-    get:
-      tags: [Products]
-      summary: Get product by ID
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Product details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '404':
-          $ref: '#/components/responses/NotFound'
+          description: Created
 
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
   schemas:
-    Product:
-      type: object
-      properties:
-        id:
-          type: string
-          example: 'cuid123abc'
-        name:
-          type: string
-          example: 'Wireless Headphones'
-        description:
-          type: string
-          nullable: true
-        price:
-          type: number
-          format: decimal
-          example: 149.99
-        stock:
-          type: integer
-          example: 50
-        categoryId:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-      required:
-        - id
-        - name
-        - price
-        - categoryId
-
-    CreateProduct:
-      type: object
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 200
-        description:
-          type: string
-        price:
-          type: number
-          minimum: 0.01
-        stock:
-          type: integer
-          minimum: 0
-          default: 0
-        categoryId:
-          type: string
-      required:
-        - name
-        - price
-        - categoryId
-
-    ProductList:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Product'
-        meta:
-          $ref: '#/components/schemas/PaginationMeta'
-
-    PaginationMeta:
-      type: object
-      properties:
-        page:
-          type: integer
-        limit:
-          type: integer
-        total:
-          type: integer
-        totalPages:
-          type: integer
-
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-        message:
-          type: string
-        details:
-          type: array
-          items:
-            type: object
-
+    # Define your schemas here
   responses:
-    ValidationError:
-      description: Validation error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            error: 'VALIDATION_ERROR'
-            message: 'Invalid request data'
-            details:
-              - field: 'name'
-                message: 'Name is required'
-
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            error: 'UNAUTHORIZED'
-            message: 'Authentication required'
-
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            error: 'NOT_FOUND'
-            message: 'Resource not found'
+    # Reusable error responses
 ```
+
+> See the full template for complete examples with authentication, pagination, and error handling.
 
 ### 9. API Versioning Strategy
 
@@ -458,12 +277,13 @@ Design the REST API for this project.
 Read:
 - `/docs/requirements.md` for features
 - `/docs/database/schema.md` for data model
+- `.sops/templates/api-design-template.yaml` as OpenAPI starting point
 
-Execute SOP-200 (API Design):
+Execute SOP-202 (API Design):
 1. Identify resources from the data model
 2. Design endpoints for each resource
 3. Define request/response formats
-4. Create OpenAPI specification
+4. Create OpenAPI specification (copy template to /docs/api/openapi.yaml)
 5. Document in /docs/api/endpoints.md and /docs/api/openapi.yaml
 ```
 
@@ -479,7 +299,7 @@ Execute SOP-200 (API Design):
 ## Related SOPs
 
 - **SOP-101:** Schema Design (data model → resources)
-- **SOP-201:** Authentication (securing endpoints)
-- **SOP-202:** Authorization (access control)
-- **SOP-203:** Error Handling (error responses)
-- **SOP-204:** Validation (input validation)
+- \*\*SOP-203: Authentication (securing endpoints)
+- **SOP-204:** Authorization (access control)
+- \*\*SOP-205: Error Handling (error responses)
+- \*\*SOP-206: Validation (input validation)

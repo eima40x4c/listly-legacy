@@ -115,7 +115,6 @@ openssl rand -base64 32
 # Generate a UUID
 uuidgen
 ```
-````
 
 ## Environment-Specific Values
 
@@ -123,7 +122,6 @@ uuidgen
 | ---------- | ----------------------- | ------------------------- | ----------------- |
 | `NODE_ENV` | `development`           | `staging`                 | `production`      |
 | `APP_URL`  | `http://localhost:3000` | `https://staging.app.com` | `https://app.com` |
-
 ````
 
 ### 4. Set Up Local Development Database
@@ -145,7 +143,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-appdb}
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -155,11 +153,11 @@ services:
     container_name: ${PROJECT_NAME:-app}_redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - '6379:6379'
 
 volumes:
   postgres_data:
-````
+```
 
 **Option B: Cloud Development Database**
 
@@ -296,7 +294,6 @@ pnpm setup
 # Start development server
 pnpm dev
 ```
-````
 
 ## Manual Setup
 
@@ -348,8 +345,7 @@ Change the port in `.env`:
 ```
 PORT=3001
 ```
-
-```
+````
 
 ---
 
@@ -369,19 +365,16 @@ PORT=3001
 ## AI Agent Prompt Template
 
 ```
-
 Set up the development environment for this project.
 
 Read `/docs/tech-stack.md` for technology context.
 
 Execute SOP-004 (Environment Setup):
-
 1. Create .env.example with all required variables
 2. Create docker-compose.yml for local database
 3. Add setup scripts to package.json
 4. Create VS Code settings
 5. Document setup in /docs/development-setup.md
-
 ```
 
 ---
@@ -407,10 +400,9 @@ Execute SOP-004 (Environment Setup):
 
 ## Security Reminders
 
-| Do | Don't |
-|----|-------|
-| Use `.env.example` for templates | Commit `.env` with real secrets |
+| Do                                      | Don't                             |
+| --------------------------------------- | --------------------------------- |
+| Use `.env.example` for templates        | Commit `.env` with real secrets   |
 | Generate unique secrets per environment | Reuse secrets across environments |
-| Document how to generate secrets | Share secrets in chat/email |
-| Use secret managers in production | Store production secrets in code |
-```
+| Document how to generate secrets        | Share secrets in chat/email       |
+| Use secret managers in production       | Store production secrets in code  |

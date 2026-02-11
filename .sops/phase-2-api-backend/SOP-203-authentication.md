@@ -1,4 +1,4 @@
-# SOP-201: Authentication
+# SOP-203: Authentication
 
 ## Purpose
 
@@ -17,7 +17,7 @@ Implement secure user authentication to verify identity before granting access t
 ## Prerequisites
 
 - [ ] SOP-101 (Schema Design) completed — User model exists
-- [ ] SOP-200 (API Design) completed — Auth endpoints defined
+- [ ] SOP-202 (API Design) completed — Auth endpoints defined
 - [ ] Password hashing library selected
 
 ---
@@ -450,7 +450,7 @@ Read:
 - `/docs/tech-stack.md` for framework
 - `prisma/schema.prisma` for User model
 
-Execute SOP-201 (Authentication):
+Execute SOP-203 (Authentication):
 1. Install authentication dependencies
 2. Create password hashing utilities
 3. Configure NextAuth with Prisma adapter

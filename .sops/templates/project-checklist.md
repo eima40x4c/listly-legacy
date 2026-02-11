@@ -97,7 +97,20 @@
 
 ## Phase 2: API & Backend
 
-### API Design (SOP-200)
+### Service Layer (SOP-200)
+
+- [ ] User stories mapped to service methods
+- [ ] Service interfaces defined
+- [ ] Business rules documented
+- [ ] Traceability matrix created
+
+### Repository Pattern (SOP-201)
+
+- [ ] Repository interfaces defined
+- [ ] Data access encapsulated
+- [ ] Transaction support implemented
+
+### API Design (SOP-202)
 
 - [x] API specification created (OpenAPI/Swagger)
 - [x] Endpoints follow RESTful conventions
@@ -112,7 +125,7 @@
 - [x] OpenAPI 3.0.3 specification created
 - [x] Comprehensive endpoint documentation
 
-### Authentication (SOP-201)
+### Authentication (SOP-203)
 
 - [x] Auth method selected: **NextAuth.js v5 with JWT sessions**
 - [x] OAuth providers configured: **Google (primary), Apple (primary), GitHub (optional)**
@@ -128,7 +141,7 @@
 - [x] Type definitions for NextAuth extended
 - [x] SessionProvider component created
 
-### Authorization (SOP-202)
+### Authorization (SOP-204)
 
 - [x] Roles defined: **VIEWER, EDITOR, ADMIN, owner (pseudo-role)**
 - [x] Permission matrix documented
@@ -142,7 +155,7 @@
 - [x] Resource-based authorization (ownership + collaboration)
 - [x] No system-wide admin roles (aligns with household app design)
 
-### Error Handling (SOP-203)
+### Error Handling (SOP-205)
 
 - [x] Standard error response format defined
 - [x] Error codes documented
@@ -155,7 +168,7 @@
 - [x] Error documentation created (docs/api/errors.md)
 - [x] Request wrapper with error handling (withErrorHandling)
 
-### Validation (SOP-204)
+### Validation (SOP-206)
 
 - [x] Input validation library selected: **Zod**
 - [x] Request schemas defined (9 resource schemas + common + pagination)
@@ -212,7 +225,15 @@
 - [x] Typography standards defined
 - [x] Focus states and accessibility patterns established
 
-### API Integration (SOP-302)
+### UI/UX Design (SOP-302)
+
+- [ ] User stories analyzed for UI implications
+- [ ] Wireframes created (text-based or Figma)
+- [ ] User flows documented
+- [ ] Component hierarchy defined
+- [ ] Design approved by stakeholder
+
+### API Integration (SOP-303)
 
 - [x] API client/wrapper created (src/lib/api/client.ts)
 - [x] Loading states handled (Skeleton component)
@@ -231,13 +252,34 @@
 - [x] Barrel exports for easy hook imports
 - [x] React Query DevTools configured for development
 
-### Form Handling (SOP-303)
+### Form Handling (SOP-304)
 
-- [ ] Form library selected (if any)
-- [ ] Validation feedback patterns
-- [ ] Submission loading states
+- [x] Form library selected: **React Hook Form 7**
+- [x] Zod resolver configured (@hookform/resolvers)
+- [x] Form UI components created (Form, FormField, FormItem, FormLabel, FormControl, FormMessage)
+- [x] Radix UI Select component implemented for form integration
+- [x] useZodForm hook created for type-safe form handling
+- [x] Authentication forms created:
+  - [x] LoginForm (email/password with NextAuth integration)
+  - [x] RegisterForm (email/password with auto-login)
+- [x] Shopping list forms created:
+  - [x] ShoppingListForm (create/edit lists with store selection)
+  - [x] ListItemForm (add/edit items with categories and pricing)
+- [x] Form validation with Zod schemas
+- [x] Error display patterns implemented (inline errors, form-level errors)
+- [x] Loading states during submission
+- [x] Success/error feedback patterns
+- [x] Barrel exports updated for new components
 
-### Progressive Web App (SOP-304) — _Optional_
+### Page Implementation (SOP-305)
+
+- [ ] Page planning documents created
+- [ ] Server/client components structured
+- [ ] Loading skeletons implemented
+- [ ] Error boundaries configured
+- [ ] Navigation wired up
+
+### Progressive Web App (SOP-306) — _Optional_
 
 - [ ] PWA required for this project: ☐ Yes / ☐ No
 - [ ] Service worker configured (Serwist/next-pwa)
@@ -281,18 +323,26 @@
 - [ ] API contract tests written
 - [ ] Database integration tests written
 
-### Code Review (SOP-502)
+### E2E Testing (SOP-502)
+
+- [ ] Playwright configured
+- [ ] Page objects created
+- [ ] Critical user flows tested
+- [ ] Accessibility tests included
+- [ ] CI pipeline runs E2E tests
+
+### Code Review (SOP-503)
 
 - [ ] PR template created
 - [ ] Review checklist defined
 - [ ] Minimum reviewers set: **\_**
 
-### Security Audit (SOP-503)
+### Documentation (SOP-504)
 
-- [ ] Dependency scanner configured
-- [ ] OWASP Top 10 reviewed
-- [ ] Secrets detection enabled
-- [ ] No hardcoded credentials
+- [ ] README complete
+- [ ] API documentation generated
+- [ ] Architecture documented
+- [ ] Deployment instructions added
 
 ---
 
@@ -307,7 +357,7 @@
 
 ### Deployment Strategy (SOP-601)
 
-- [ ] Deployment method selected: \***\*\*\*\*\***\_\***\*\*\*\*\***
+- [ ] Deployment method selected: ****\*\*****\_****\*\*****
 - [ ] Rollback procedure documented
 - [ ] Feature flags considered (if needed)
 

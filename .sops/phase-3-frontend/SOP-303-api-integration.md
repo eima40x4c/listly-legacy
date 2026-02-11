@@ -1,4 +1,4 @@
-# SOP-302: API Integration
+# SOP-303: API Integration
 
 ## Purpose
 
@@ -10,13 +10,13 @@ Establish consistent patterns for fetching, caching, and managing server data in
 
 - **Applies to:** All frontend data fetching operations
 - **Covers:** Data fetching, caching, error handling, loading states
-- **Does not cover:** API design (SOP-200), Authentication flow (SOP-201)
+- **Does not cover:** API design (SOP-202), Authentication flow (SOP-203)
 
 ---
 
 ## Prerequisites
 
-- [ ] SOP-200 (API Design) completed — API endpoints defined
+- [ ] SOP-202 (API Design) completed — API endpoints defined
 - [ ] SOP-300 (Component Architecture) completed
 - [ ] Backend API running
 
@@ -576,7 +576,7 @@ Read:
 - `/docs/api/endpoints.md` for API structure
 - `/docs/tech-stack.md` for frontend framework
 
-Execute SOP-302 (API Integration):
+Execute SOP-303 (API Integration):
 1. Install TanStack Query
 2. Create query client configuration
 3. Create API client with error handling
@@ -600,7 +600,7 @@ Execute SOP-302 (API Integration):
 
 ## Related SOPs
 
-- **SOP-200:** API Design (endpoint contracts)
+- **SOP-202:** API Design (endpoint contracts)
 - **SOP-300:** Component Architecture (component patterns)
-- **SOP-203:** Error Handling (API error format)
-- **SOP-304:** Progressive Web App (offline caching) _(optional)_
+- **SOP-205:** Error Handling (API error format)
+- **SOP-306:** Progressive Web App (offline caching) _(optional)_

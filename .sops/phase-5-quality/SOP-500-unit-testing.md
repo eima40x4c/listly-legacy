@@ -541,7 +541,8 @@ Execute SOP-500 (Unit Testing):
 ## Related SOPs
 
 - **SOP-501:** Integration Testing (testing with real dependencies)
-- **SOP-502:** Code Review (reviewing test quality)
+- **SOP-502:** E2E Testing (user flow testing)
+- **SOP-503:** Code Review (reviewing test quality)
 - **SOP-006:** Code Style Standards (test naming conventions)
 
 ---

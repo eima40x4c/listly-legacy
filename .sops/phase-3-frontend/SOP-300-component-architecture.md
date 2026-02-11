@@ -515,5 +515,5 @@ Execute SOP-300 (Component Architecture):
 
 - **SOP-003:** Project Structure (folder organization)
 - **SOP-301:** Styling Standards (component styling)
-- **SOP-303:** Form Handling (form components)
-- **SOP-304:** Progressive Web App (mobile UI components) _(optional)_
+- **SOP-304:** Form Handling (form components)
+- **SOP-306:** Progressive Web App (mobile UI components) _(optional)_

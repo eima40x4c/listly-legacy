@@ -1,4 +1,4 @@
-# SOP-304: Progressive Web App (PWA) Setup
+# SOP-306: Progressive Web App (PWA) Setup
 
 ## Purpose
 
@@ -725,5 +725,5 @@ After completing this SOP, you should have:
 
 - **SOP-300:** Component Architecture (component patterns)
 - **SOP-301:** Styling Standards (responsive design)
-- **SOP-302:** API Integration (offline data sync)
+- **SOP-303:** API Integration (offline data sync)
 - **SOP-602:** Monitoring (PWA-specific metrics)

@@ -249,7 +249,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ### 6. Create CONTRIBUTING.md
 
-```markdown
+````markdown
 # Contributing to {Project Name}
 
 ## Getting Started
@@ -272,12 +272,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ## Commit Messages
 
 We use [Conventional Commits](https://www.conventionalcommits.org/):
-```
 
+```
 feat(scope): add new feature
 fix(scope): fix bug
 docs(scope): update documentation
-
 ```
 
 ## Pull Request Process
@@ -296,8 +295,6 @@ docs(scope): update documentation
 ## Questions?
 
 Open an issue for questions or discussions.
-```
-
 ````
 
 ### 7. Create Pull Request Template
@@ -406,4 +403,3 @@ The project is: {brief description}
 - **SOP-001:** Tech Stack Selection (informs `.gitignore`)
 - **SOP-003:** Project Structure (folder organization)
 - **SOP-006:** Code Style Standards (linting rules referenced in CONTRIBUTING)
-````

@@ -1,4 +1,4 @@
-# SOP-204: Validation
+# SOP-206: Validation
 
 ## Purpose
 
@@ -16,8 +16,8 @@ Implement robust input validation to ensure data integrity, prevent security vul
 
 ## Prerequisites
 
-- [ ] SOP-200 (API Design) completed — endpoints defined
-- [ ] SOP-203 (Error Handling) completed — validation error format
+- [ ] SOP-202 (API Design) completed — endpoints defined
+- [ ] SOP-205 (Error Handling) completed — validation error format
 
 ---
 
@@ -544,7 +544,7 @@ Read:
 - `/docs/api/endpoints.md` for API structure
 - `prisma/schema.prisma` for data types
 
-Execute SOP-204 (Validation):
+Execute SOP-206 (Validation):
 1. Create common validation schemas (email, password, etc.)
 2. Create resource-specific schemas
 3. Create pagination schema
@@ -566,7 +566,7 @@ Execute SOP-204 (Validation):
 
 ## Related SOPs
 
-- **SOP-200:** API Design (endpoint contracts)
+- **SOP-202:** API Design (endpoint contracts)
 - **SOP-203:** Error Handling (validation error format)
 - **SOP-101:** Schema Design (data types alignment)
 

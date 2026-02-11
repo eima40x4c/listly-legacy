@@ -1,4 +1,4 @@
-# SOP-202: Authorization
+# SOP-204: Authorization
 
 ## Purpose
 
@@ -10,13 +10,13 @@ Implement access control to ensure users can only access resources and perform a
 
 - **Applies to:** All applications with varying access levels
 - **Covers:** Role-based access control (RBAC), resource ownership, permission checking
-- **Does not cover:** Authentication (SOP-201), API rate limiting
+- **Does not cover:** Authentication (SOP-203), API rate limiting
 
 ---
 
 ## Prerequisites
 
-- [ ] SOP-201 (Authentication) completed
+- [ ] SOP-203 (Authentication) completed
 - [ ] User roles defined in schema
 - [ ] Resource ownership patterns identified
 
@@ -450,7 +450,7 @@ Read:
 - `prisma/schema.prisma` for role definitions
 - Existing auth code in src/lib/auth/
 
-Execute SOP-202 (Authorization):
+Execute SOP-204 (Authorization):
 1. Define roles and permissions matrix
 2. Create permission checking utilities
 3. Create authorization middleware
@@ -473,6 +473,6 @@ Execute SOP-202 (Authorization):
 
 ## Related SOPs
 
-- **SOP-201:** Authentication (identifies user)
-- **SOP-200:** API Design (endpoint requirements)
-- **SOP-203:** Error Handling (403 responses)
+- **SOP-203:** Authentication (identifies user)
+- \*\*SOP-202: API Design (endpoint requirements)
+- \*\*SOP-205: Error Handling (403 responses)

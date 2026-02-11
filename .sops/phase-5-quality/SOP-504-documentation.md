@@ -1,4 +1,4 @@
-# SOP-503: Documentation
+# SOP-504: Documentation
 
 ## Purpose
 
@@ -17,7 +17,7 @@ Establish documentation standards to ensure code, APIs, and processes are well-d
 ## Prerequisites
 
 - [ ] SOP-003 (Project Structure) — project organized
-- [ ] SOP-200 (API Design) — APIs defined
+- [ ] SOP-202 (API Design) — APIs defined
 - [ ] Core features implemented
 
 ---
@@ -654,7 +654,7 @@ Read:
 - `src/lib/` for exported functions
 - `src/app/api/` for API routes
 
-Execute SOP-503 (Documentation):
+Execute SOP-504 (Documentation):
 1. Create/update README with setup guide
 2. Add TSDoc to exported functions
 3. Create OpenAPI specification
@@ -679,7 +679,7 @@ Execute SOP-503 (Documentation):
 
 ## Related SOPs
 
-- **SOP-200:** API Design (API documentation)
+- **SOP-202:** API Design (API documentation)
 - **SOP-003:** Project Structure (folder organization)
 - **SOP-002:** Repository Setup (README basics)
 

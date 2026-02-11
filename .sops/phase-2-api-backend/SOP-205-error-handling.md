@@ -1,4 +1,4 @@
-# SOP-203: Error Handling
+# SOP-205: Error Handling
 
 ## Purpose
 
@@ -16,7 +16,7 @@ Implement consistent, informative error handling across the application. Good er
 
 ## Prerequisites
 
-- [ ] SOP-200 (API Design) completed — response formats defined
+- [ ] SOP-202 (API Design) completed — response formats defined
 - [ ] Logger utility available (SOP-004)
 
 ---
@@ -399,7 +399,6 @@ All errors follow this format:
   "requestId": "req_abc123"
 }
 ```
-````
 
 ## Client Errors (4xx)
 
@@ -448,8 +447,7 @@ Validation errors include a `details` array:
   ]
 }
 ```
-
-```
+````
 
 ---
 
@@ -471,16 +469,13 @@ Validation errors include a `details` array:
 ## AI Agent Prompt Template
 
 ```
-
 Implement error handling for this project.
 
 Read:
-
 - `/docs/api/endpoints.md` for API structure
 - Existing API routes in src/app/api/
 
-Execute SOP-203 (Error Handling):
-
+Execute SOP-205 (Error Handling):
 1. Define error response format
 2. Create error code constants
 3. Create custom error classes
@@ -488,7 +483,6 @@ Execute SOP-203 (Error Handling):
 5. Create request wrapper with error handling
 6. Create logger utility
 7. Document error codes
-
 ```
 
 ---
@@ -506,18 +500,17 @@ Execute SOP-203 (Error Handling):
 
 ## Related SOPs
 
-- **SOP-200:** API Design (response formats)
-- **SOP-204:** Validation (validation errors)
+- **SOP-202:** API Design (response formats)
+- \*\*SOP-206: Validation (validation errors)
 - **SOP-602:** Monitoring (error tracking)
 
 ---
 
 ## Security Notes
 
-| Do | Don't |
-|----|-------|
+| Do                                     | Don't                          |
+| -------------------------------------- | ------------------------------ |
 | Return generic messages for 500 errors | Expose stack traces to clients |
-| Log full errors server-side | Log passwords or tokens |
-| Use request IDs for debugging | Expose internal system details |
-| Document expected errors | Return database error messages |
-```
+| Log full errors server-side            | Log passwords or tokens        |
+| Use request IDs for debugging          | Expose internal system details |
+| Document expected errors               | Return database error messages |

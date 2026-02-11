@@ -243,7 +243,7 @@ Ask me clarifying questions to fill in the details.
 ## Related SOPs
 
 - **SOP-001:** Tech Stack Selection (uses requirements to inform choices)
-- **SOP-200:** API Design (implements functional requirements)
+- **SOP-202:** API Design (implements functional requirements)
 - **SOP-101:** Schema Design (derives from data requirements)
 
 ---

@@ -1,4 +1,4 @@
-# SOP-502: Code Review
+# SOP-503: Code Review
 
 ## Purpose
 
@@ -435,7 +435,7 @@ Read:
 - `.github/` for existing configuration
 - Team size and structure
 
-Execute SOP-502 (Code Review):
+Execute SOP-503 (Code Review):
 1. Create PR template
 2. Configure branch protection
 3. Set up CODEOWNERS
