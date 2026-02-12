@@ -78,6 +78,36 @@ export const ErrorCodes = {
    */
   LIST_NOT_EMPTY: 'LIST_NOT_EMPTY',
 
+  /**
+   * Collaboration invitation has expired.
+   * HTTP 422
+   */
+  INVITATION_EXPIRED: 'INVITATION_EXPIRED',
+
+  /**
+   * Collaboration invitation was already accepted.
+   * HTTP 409
+   */
+  INVITATION_ALREADY_ACCEPTED: 'INVITATION_ALREADY_ACCEPTED',
+
+  /**
+   * User has reached the maximum number of lists.
+   * HTTP 422
+   */
+  LIST_LIMIT_REACHED: 'LIST_LIMIT_REACHED',
+
+  /**
+   * List has reached the maximum number of items.
+   * HTTP 422
+   */
+  ITEM_LIMIT_REACHED: 'ITEM_LIMIT_REACHED',
+
+  /**
+   * Email verification is required for this action.
+   * HTTP 403
+   */
+  EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
+
   // ============================================================================
   // Server Errors (5xx)
   // ============================================================================

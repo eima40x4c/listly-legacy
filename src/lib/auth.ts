@@ -11,12 +11,112 @@
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import type { NextAuthConfig } from 'next-auth';
 import NextAuth from 'next-auth';
-import Apple from 'next-auth/providers/apple';
+import type { Adapter } from 'next-auth/adapters';
+// import Apple from 'next-auth/providers/apple';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 
 import { verifyPassword } from '@/lib/auth/password';
 import { prisma } from '@/lib/db';
+
+/**
+ * Custom Prisma adapter that maps NextAuth's user fields to our schema.
+ * Maps `image` -> `avatarUrl` and handles `emailVerified` as boolean.
+ */
+function customPrismaAdapter(): Adapter {
+  const baseAdapter = PrismaAdapter(prisma);
+
+  return {
+    ...baseAdapter,
+    async createUser(user) {
+      const data = {
+        id: user.id,
+        name: user.name || '',
+        email: user.email,
+        avatarUrl: user.image || null,
+        emailVerified: !!user.emailVerified,
+      };
+
+      const createdUser = await prisma.user.create({
+        data,
+      });
+
+      return {
+        ...createdUser,
+        image: createdUser.avatarUrl,
+        emailVerified: createdUser.emailVerified ? new Date() : null,
+      };
+    },
+    async getUser(id) {
+      const user = await prisma.user.findUnique({
+        where: { id },
+      });
+
+      if (!user) return null;
+
+      return {
+        ...user,
+        image: user.avatarUrl,
+        emailVerified: user.emailVerified ? new Date() : null,
+      };
+    },
+    async getUserByEmail(email) {
+      const user = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) return null;
+
+      return {
+        ...user,
+        image: user.avatarUrl,
+        emailVerified: user.emailVerified ? new Date() : null,
+      };
+    },
+    async getUserByAccount({ providerAccountId, provider }) {
+      const account = await prisma.account.findUnique({
+        where: {
+          provider_providerAccountId: {
+            provider,
+            providerAccountId,
+          },
+        },
+        include: { user: true },
+      });
+
+      if (!account) return null;
+
+      return {
+        ...account.user,
+        image: account.user.avatarUrl,
+        emailVerified: account.user.emailVerified ? new Date() : null,
+      };
+    },
+    async updateUser({ id, ...data }) {
+      const updateData: any = { ...data };
+
+      if ('image' in updateData) {
+        updateData.avatarUrl = updateData.image;
+        delete updateData.image;
+      }
+
+      if ('emailVerified' in updateData) {
+        updateData.emailVerified = !!updateData.emailVerified;
+      }
+
+      const user = await prisma.user.update({
+        where: { id },
+        data: updateData,
+      });
+
+      return {
+        ...user,
+        image: user.avatarUrl,
+        emailVerified: user.emailVerified ? new Date() : null,
+      };
+    },
+  };
+}
 
 /**
  * NextAuth configuration options.
@@ -25,12 +125,12 @@ import { prisma } from '@/lib/db';
  * - Google OAuth (primary)
  * - Apple OAuth (primary)
  * - Credentials-based authentication (email/password fallback)
- * - Prisma adapter for database persistence
- * - JWT session strategy for stateless auth
+ * - Custom Prisma adapter for database persistence
+ * - Database session strategy for OAuth
  * - Custom callbacks to sync OAuth users with our schema
  */
 export const authConfig: NextAuthConfig = {
-  adapter: PrismaAdapter(prisma) as any, // Type compatibility workaround for NextAuth v5 beta
+  adapter: customPrismaAdapter() as any, // Type compatibility workaround for NextAuth v5 beta
 
   providers: [
     // ── Primary: OAuth Providers ──────────────────────────────
@@ -40,11 +140,12 @@ export const authConfig: NextAuthConfig = {
       allowDangerousEmailAccountLinking: true,
     }),
 
-    Apple({
-      clientId: process.env.APPLE_CLIENT_ID!,
-      clientSecret: process.env.APPLE_CLIENT_SECRET!,
-      allowDangerousEmailAccountLinking: true,
-    }),
+    // Apple OAuth - Disabled for now
+    // Apple({
+    //   clientId: process.env.APPLE_CLIENT_ID!,
+    //   clientSecret: process.env.APPLE_CLIENT_SECRET!,
+    //   allowDangerousEmailAccountLinking: true,
+    // }),
 
     // ── Fallback: Email/Password ─────────────────────────────
     CredentialsProvider({
@@ -102,9 +203,9 @@ export const authConfig: NextAuthConfig = {
   ],
 
   session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours (update session every day)
+    strategy: 'jwt', // JWT sessions work in Edge runtime (middleware)
+    maxAge: 24 * 60 * 60, // 24 hours (matches NFR: "JWT with 24h expiry")
+    updateAge: 60 * 60, // 1 hour (refresh session hourly within the 24h window)
   },
 
   callbacks: {

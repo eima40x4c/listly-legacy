@@ -1,7 +1,7 @@
 # Authentication Implementation
 
-> **Status:** ✅ Implemented (SOP-201)  
-> **Last Updated:** 2026-02-09  
+> **Status:** ✅ Implemented (SOP-201)
+> **Last Updated:** 2026-02-09
 > **Framework:** NextAuth.js v5
 
 ---
@@ -13,7 +13,7 @@ Listly uses [NextAuth.js v5](https://next-auth.js.org/) for authentication with 
 - ✅ Email/password authentication
 - ✅ Stateless JWT sessions (no server-side session storage)
 - ✅ Secure password hashing (bcrypt, 12 rounds)
-- ✅ Session expiration and refresh (30 days, refresh every 24h)
+- ✅ Session expiration and refresh (24 hours, refresh every hour)
 - ✅ Type-safe session access (TypeScript)
 - ✅ Protected routes and API endpoints
 - 🔜 OAuth providers (Google, GitHub, Apple) - ready for extension
@@ -251,8 +251,8 @@ export async function GET() {
 ### Session Security
 
 - **Strategy:** JWT (stateless)
-- **Max age:** 30 days
-- **Update age:** 24 hours (session refreshes every day)
+- **Max age:** 24 hours (matches NFR: "JWT with 24h expiry")
+- **Update age:** 1 hour (session refreshes hourly within the 24h window)
 - **Secret:** `NEXTAUTH_SECRET` environment variable (must be 32+ random chars)
 - **Cookie:** HTTP-only, Secure (in production), SameSite=Lax
 
