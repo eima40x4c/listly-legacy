@@ -8,14 +8,23 @@
  * @module lib/auth
  */
 
+/**
+ * NextAuth.js Configuration
+ *
+ * Configures authentication with OAuth providers (Google, Apple) as the primary
+ * login method and email/password credentials as a fallback.
+ * Uses Prisma adapter for database persistence.
+ *
+ * @module lib/auth
+ */
+
 import { PrismaAdapter } from '@auth/prisma-adapter';
-import type { NextAuthConfig } from 'next-auth';
 import NextAuth from 'next-auth';
 import type { Adapter } from 'next-auth/adapters';
-// import Apple from 'next-auth/providers/apple';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 
+import { authConfig } from '@/lib/auth.config';
 import { verifyPassword } from '@/lib/auth/password';
 import { prisma } from '@/lib/db';
 
@@ -26,9 +35,11 @@ import { prisma } from '@/lib/db';
 function customPrismaAdapter(): Adapter {
   const baseAdapter = PrismaAdapter(prisma);
 
+  // Cast to any first to bypass @auth/core version mismatch between
+  // @auth/prisma-adapter (0.41.1) and next-auth (0.41.0)
   return {
     ...baseAdapter,
-    async createUser(user) {
+    async createUser(user: any) {
       const data = {
         id: user.id,
         name: user.name || '',
@@ -47,7 +58,7 @@ function customPrismaAdapter(): Adapter {
         emailVerified: createdUser.emailVerified ? new Date() : null,
       };
     },
-    async getUser(id) {
+    async getUser(id: string) {
       const user = await prisma.user.findUnique({
         where: { id },
       });
@@ -60,7 +71,7 @@ function customPrismaAdapter(): Adapter {
         emailVerified: user.emailVerified ? new Date() : null,
       };
     },
-    async getUserByEmail(email) {
+    async getUserByEmail(email: string) {
       const user = await prisma.user.findUnique({
         where: { email },
       });
@@ -73,7 +84,13 @@ function customPrismaAdapter(): Adapter {
         emailVerified: user.emailVerified ? new Date() : null,
       };
     },
-    async getUserByAccount({ providerAccountId, provider }) {
+    async getUserByAccount({
+      providerAccountId,
+      provider,
+    }: {
+      providerAccountId: string;
+      provider: string;
+    }) {
       const account = await prisma.account.findUnique({
         where: {
           provider_providerAccountId: {
@@ -92,7 +109,7 @@ function customPrismaAdapter(): Adapter {
         emailVerified: account.user.emailVerified ? new Date() : null,
       };
     },
-    async updateUser({ id, ...data }) {
+    async updateUser({ id, ...data }: { id: string; [key: string]: any }) {
       const updateData: any = { ...data };
 
       if ('image' in updateData) {
@@ -115,22 +132,16 @@ function customPrismaAdapter(): Adapter {
         emailVerified: user.emailVerified ? new Date() : null,
       };
     },
-  };
+  } as any as Adapter;
 }
 
 /**
- * NextAuth configuration options.
- *
- * Features:
- * - Google OAuth (primary)
- * - Apple OAuth (primary)
- * - Credentials-based authentication (email/password fallback)
- * - Custom Prisma adapter for database persistence
- * - Database session strategy for OAuth
- * - Custom callbacks to sync OAuth users with our schema
+ * NextAuth handlers and helper functions.
+ * Export auth, signIn, signOut for use in the app.
  */
-export const authConfig: NextAuthConfig = {
-  adapter: customPrismaAdapter() as any, // Type compatibility workaround for NextAuth v5 beta
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
+  adapter: customPrismaAdapter() as any,
 
   providers: [
     // ── Primary: OAuth Providers ──────────────────────────────
@@ -139,13 +150,6 @@ export const authConfig: NextAuthConfig = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       allowDangerousEmailAccountLinking: true,
     }),
-
-    // Apple OAuth - Disabled for now
-    // Apple({
-    //   clientId: process.env.APPLE_CLIENT_ID!,
-    //   clientSecret: process.env.APPLE_CLIENT_SECRET!,
-    //   allowDangerousEmailAccountLinking: true,
-    // }),
 
     // ── Fallback: Email/Password ─────────────────────────────
     CredentialsProvider({
@@ -160,7 +164,6 @@ export const authConfig: NextAuthConfig = {
           throw new Error('Email and password are required');
         }
 
-        // Find user by email
         const user = await prisma.user.findUnique({
           where: { email: (credentials.email as string).toLowerCase() },
         });
@@ -169,12 +172,10 @@ export const authConfig: NextAuthConfig = {
           throw new Error('Invalid email or password');
         }
 
-        // Check if user is active
         if (!user.isActive) {
           throw new Error('Account is disabled');
         }
 
-        // OAuth-only users cannot use credentials login
         if (!user.passwordHash) {
           throw new Error(
             'This account uses social login. Please sign in with Google or Apple.'
@@ -190,7 +191,6 @@ export const authConfig: NextAuthConfig = {
           throw new Error('Invalid email or password');
         }
 
-        // Return user object (will be encoded in JWT)
         return {
           id: user.id,
           email: user.email,
@@ -202,36 +202,26 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
 
-  session: {
-    strategy: 'jwt', // JWT sessions work in Edge runtime (middleware)
-    maxAge: 24 * 60 * 60, // 24 hours (matches NFR: "JWT with 24h expiry")
-    updateAge: 60 * 60, // 1 hour (refresh session hourly within the 24h window)
-  },
-
   callbacks: {
-    /**
-     * JWT callback - runs when JWT is created or updated.
-     * Add custom claims to the token here.
-     */
+    ...authConfig.callbacks,
     async jwt({ token, user, trigger }) {
-      // Initial sign in - add user data to token
-      if (user) {
-        token.id = user.id!;
-        token.emailVerified = !!user.emailVerified;
-      }
+      // Basic logic from config
+      await authConfig.callbacks?.jwt?.({
+        token,
+        user,
+        trigger,
+        session: null,
+      } as any);
 
-      // Handle token refresh/update
+      // Database sync for updates
       if (trigger === 'update') {
-        // Fetch fresh user data
         const updatedUser = await prisma.user.findUnique({
           where: { id: token.id as string },
           select: {
-            id: true,
             email: true,
             name: true,
             avatarUrl: true,
             emailVerified: true,
-            isActive: true,
           },
         });
 
@@ -245,34 +235,9 @@ export const authConfig: NextAuthConfig = {
 
       return token;
     },
-
-    /**
-     * Session callback - runs when session is accessed.
-     * Add custom fields to the session object here.
-     */
-    async session({ session, token }) {
-      if (session.user && token) {
-        session.user.id = token.id as string;
-        session.user.emailVerified = token.emailVerified ? new Date() : null;
-      }
-      return session;
-    },
-  },
-
-  pages: {
-    signIn: '/login',
-    signOut: '/login',
-    error: '/login',
-    verifyRequest: '/auth/verify-request',
   },
 
   events: {
-    /**
-     * Sync OAuth provider info with our User model.
-     * When a user signs in via Google/Apple for the first time,
-     * the Prisma adapter creates the user but doesn't set our custom
-     * `provider` and `providerId` fields. This event fills those in.
-     */
     async signIn({ user, account }) {
       if (account && user?.id && account.provider !== 'credentials') {
         const providerMap: Record<string, string> = {
@@ -287,16 +252,12 @@ export const authConfig: NextAuthConfig = {
             data: {
               provider: provider as any,
               providerId: account.providerAccountId,
-              emailVerified: true, // OAuth emails are pre-verified
+              emailVerified: true,
             },
           });
         }
       }
     },
-
-    /**
-     * Create default UserPreferences for new users.
-     */
     async createUser({ user }) {
       if (user?.id) {
         const existing = await prisma.userPreferences.findUnique({
@@ -317,12 +278,5 @@ export const authConfig: NextAuthConfig = {
     },
   },
 
-  // Enable debug logging in development
   debug: process.env.NODE_ENV === 'development',
-};
-
-/**
- * NextAuth handlers and helper functions.
- * Export auth, signIn, signOut for use in the app.
- */
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+});
