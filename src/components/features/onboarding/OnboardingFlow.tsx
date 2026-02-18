@@ -28,6 +28,7 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 
 interface OnboardingFlowProps {
   userName?: string | null;
+  userId: string;
 }
 
 const TOUR_SLIDES = [
@@ -73,27 +74,26 @@ const CURRENCIES: { value: Currency; label: string }[] = [
   { value: 'AUD', label: '🇦🇺 AUD — Australian Dollar' },
 ];
 
-export function OnboardingFlow({ userName }: OnboardingFlowProps) {
+export function OnboardingFlow({ userName, userId }: OnboardingFlowProps) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [tourIndex, setTourIndex] = useState(0);
-  const { currency, setCurrency, setHasCompletedOnboarding } =
-    useSettingsStore();
+  const { currency, setCurrency, completeOnboarding } = useSettingsStore();
 
   const totalSteps = 4;
 
   const handleCreateFirst = () => {
-    setHasCompletedOnboarding(true);
+    completeOnboarding(userId);
     router.push('/lists?createList=true');
   };
 
   const handleComplete = () => {
-    setHasCompletedOnboarding(true);
+    completeOnboarding(userId);
     router.push('/lists');
   };
 
   const handleSkip = () => {
-    setHasCompletedOnboarding(true);
+    completeOnboarding(userId);
     router.push('/lists');
   };
 

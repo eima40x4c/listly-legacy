@@ -27,17 +27,20 @@ interface SettingsState {
   defaultStore: string;
   /** Whether haptic feedback is enabled (mobile) */
   hapticEnabled: boolean;
-  /** Whether the user has completed onboarding */
-  hasCompletedOnboarding: boolean;
+  /** List of user IDs who have completed onboarding */
+  onboardingCompletedUserIds: string[];
 
   // Actions
-  setCurrency: (currency: Currency) => void;
-  setViewMode: (mode: ViewMode) => void;
-  setNotificationsEnabled: (enabled: boolean) => void;
-  setLocationEnabled: (enabled: boolean) => void;
-  setDefaultStore: (store: string) => void;
-  setHapticEnabled: (enabled: boolean) => void;
-  setHasCompletedOnboarding: (completed: boolean) => void;
+  setCurrency: (_currency: Currency) => void;
+  setViewMode: (_mode: ViewMode) => void;
+  setNotificationsEnabled: (_enabled: boolean) => void;
+  setLocationEnabled: (_enabled: boolean) => void;
+  setDefaultStore: (_store: string) => void;
+  setHapticEnabled: (_enabled: boolean) => void;
+  /** Mark onboarding as completed for a specific user ID */
+  completeOnboarding: (_userId: string) => void;
+  /** Reset onboarding for a specific user ID (debug/testing) */
+  resetOnboarding: (_userId: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -49,17 +52,28 @@ export const useSettingsStore = create<SettingsState>()(
       locationEnabled: false,
       defaultStore: '',
       hapticEnabled: true,
-      hasCompletedOnboarding: false,
+      onboardingCompletedUserIds: [],
 
-      setCurrency: (currency) => set({ currency }),
-      setViewMode: (mode) => set({ viewMode: mode }),
-      setNotificationsEnabled: (enabled) =>
-        set({ notificationsEnabled: enabled }),
-      setLocationEnabled: (enabled) => set({ locationEnabled: enabled }),
-      setDefaultStore: (store) => set({ defaultStore: store }),
-      setHapticEnabled: (enabled) => set({ hapticEnabled: enabled }),
-      setHasCompletedOnboarding: (completed) =>
-        set({ hasCompletedOnboarding: completed }),
+      setCurrency: (_currency) => set({ currency: _currency }),
+      setViewMode: (_mode) => set({ viewMode: _mode }),
+      setNotificationsEnabled: (_enabled) =>
+        set({ notificationsEnabled: _enabled }),
+      setLocationEnabled: (_enabled) => set({ locationEnabled: _enabled }),
+      setDefaultStore: (_store) => set({ defaultStore: _store }),
+      setHapticEnabled: (_enabled) => set({ hapticEnabled: _enabled }),
+      completeOnboarding: (_userId) =>
+        set((state) => ({
+          onboardingCompletedUserIds: [
+            ...state.onboardingCompletedUserIds,
+            _userId,
+          ],
+        })),
+      resetOnboarding: (_userId) =>
+        set((state) => ({
+          onboardingCompletedUserIds: state.onboardingCompletedUserIds.filter(
+            (id) => id !== _userId
+          ),
+        })),
     }),
     {
       name: 'listly-settings',
