@@ -138,9 +138,13 @@ export function ListDetailContent({ listId }: ListDetailContentProps) {
     });
   }, []);
 
-  const handleFinishShopping = useCallback(async () => {
-    if (!confirm('Mark all items as checked and finish shopping?')) return;
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
+  const handleFinishShopping = useCallback(() => {
+    setShowFinishConfirm(true);
+  }, []);
+
+  const handleFinishShoppingConfirmed = useCallback(async () => {
     try {
       // Mark all unchecked items as checked
       const uncheckedItems = items.filter((item) => !item.isChecked);
@@ -154,7 +158,9 @@ export function ListDetailContent({ listId }: ListDetailContentProps) {
       }
 
       refetchItems();
-      alert('Shopping completed!');
+      // Optional: Show a toast instead of alert, but for now simple alert is replaced by the flow completion
+      // maybe redirect or just show success state?
+      // alert('Shopping completed!'); // Removed as per request to remove raw alerts
     } catch (error) {
       console.error('Failed to finish shopping:', error);
       alert('Failed to complete shopping. Please try again.');
@@ -416,6 +422,35 @@ export function ListDetailContent({ listId }: ListDetailContentProps) {
           onClose={() => setShowEditModal(false)}
           onUpdate={() => window.location.reload()}
         />
+      )}
+
+      {/* Finish Shopping Confirmation Modal */}
+      {showFinishConfirm && (
+        <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="animate-in zoom-in-95 w-full max-w-sm rounded-xl border bg-card p-6 shadow-lg">
+            <h3 className="mb-2 text-lg font-semibold">Finish Shopping?</h3>
+            <p className="mb-6 text-sm text-muted-foreground">
+              This will mark all items as checked and complete your trip.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowFinishConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setShowFinishConfirm(false);
+                  handleFinishShoppingConfirmed();
+                }}
+              >
+                Complete
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

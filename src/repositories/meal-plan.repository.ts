@@ -7,7 +7,7 @@
  * @module repositories/meal-plan.repository
  */
 
-import type { MealPlan, Prisma, PrismaClient } from '@prisma/client';
+import type { MealPlan, MealType, Prisma, PrismaClient } from '@prisma/client';
 
 import { BaseRepository } from './base.repository';
 import type {
@@ -185,7 +185,7 @@ export class MealPlanRepository
     return (this.db as PrismaClient).mealPlan.findMany({
       where: {
         userId,
-        mealType: mealType as any,
+        mealType: mealType as MealType,
         isCompleted: false, // Maybe we allow planning multiple if one is done?
         date: {
           gte: startOfDay,

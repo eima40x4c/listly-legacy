@@ -24,7 +24,6 @@ import { toast } from 'sonner';
 
 import { AppShell } from '@/components/layout/AppShell';
 import { Container } from '@/components/layout/Container';
-import { Badge } from '@/components/ui/Badge';
 import { Button, buttonVariants } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useRecipe } from '@/hooks/useRecipes';

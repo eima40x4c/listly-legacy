@@ -121,7 +121,10 @@ export const listKeys = {
 };
 
 // Hooks
-export function useLists(filters: ListFilters = {}) {
+export function useLists(
+  filters: ListFilters = {},
+  options: { enabled?: boolean } = {}
+) {
   const params = new URLSearchParams();
   if (filters.page) params.set('page', String(filters.page));
   if (filters.limit) params.set('limit', String(filters.limit));
@@ -138,6 +141,7 @@ export function useLists(filters: ListFilters = {}) {
       const response = await api.get<ListsResponse>(endpoint);
       return response.data;
     },
+    enabled: options.enabled,
   });
 }
 

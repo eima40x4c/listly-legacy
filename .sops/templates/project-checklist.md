@@ -341,20 +341,20 @@
 
 ### Progressive Web App (SOP-306) — _Optional_
 
-- [ ] PWA required for this project: ☐ Yes / ☐ No
-- [ ] Service worker configured (Serwist/next-pwa)
-- [ ] Web manifest with icons
-- [ ] Offline caching strategy defined
-- [ ] Mobile UI patterns implemented:
-  - [ ] Bottom navigation
-  - [ ] Touch targets ≥ 48px
-  - [ ] Safe area insets
-- [ ] Native APIs needed:
+- [x] PWA required for this project: ☑ Yes / ☐ No
+- [x] Service worker configured (Serwist/next-pwa)
+- [x] Web manifest with icons
+- [x] Offline caching strategy defined
+- [x] Mobile UI patterns implemented:
+  - [x] Bottom navigation
+  - [x] Touch targets ≥ 48px
+  - [x] Safe area insets
+- [x] Native APIs needed:
   - [ ] Geolocation
   - [ ] Camera/Barcode
   - [ ] Push notifications
   - [ ] Share API
-- [ ] Install prompt handled
+- [x] Install prompt handled
 - [ ] Lighthouse PWA score ≥ 90
 
 ---

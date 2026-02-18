@@ -9,7 +9,7 @@
 
 'use client';
 
-import { Check, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -24,7 +24,7 @@ export interface CustomSelectOption {
 export interface CustomSelectProps {
   options: CustomSelectOption[];
   value?: string;
-  onChange?: (value: string) => void;
+  onChange?: (_value: string) => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -121,11 +121,6 @@ export function CustomSelect({
     }
   }, [isOpen, highlightedIndex]);
 
-  const handleSelect = (optionValue: string) => {
-    onChange?.(optionValue);
-    setIsOpen(false);
-  };
-
   return (
     <div
       ref={containerRef}
@@ -141,18 +136,37 @@ export function CustomSelect({
         </label>
       )}
 
-      {/* Trigger */}
-      <button
-        id={id}
-        type="button"
-        role="combobox"
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
+      {/* Native Select (optional, for mobile/no-clipping) */}
+      <select
+        className="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none opacity-0"
+        value={value}
+        onChange={(e) => {
+          onChange?.(e.target.value);
+          setIsOpen(false);
+        }}
         disabled={disabled}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        aria-label={label || placeholder}
+      >
+        <option value="" disabled>
+          {placeholder}
+        </option>
+        {options.map((option) => (
+          <option
+            key={option.value}
+            value={option.value}
+            disabled={option.disabled}
+          >
+            {option.label}
+          </option>
+        ))}
+      </select>
+
+      {/* Trigger (Visual) */}
+      <div
         className={cn(
           'flex w-full items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm',
-          'transition-colors hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+          'transition-colors',
+          !disabled && 'hover:bg-muted/50',
           disabled && 'cursor-not-allowed opacity-50',
           isOpen && 'ring-2 ring-ring ring-offset-2'
         )}
@@ -172,41 +186,17 @@ export function CustomSelect({
             isOpen && 'rotate-180'
           )}
         />
-      </button>
+      </div>
 
-      {/* Options panel */}
-      {isOpen && (
-        <ul
-          ref={listRef}
-          role="listbox"
-          className="animate-dropdown-enter absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border bg-background py-1 shadow-xl"
-        >
-          {options.map((option, index) => (
-            <li
-              key={option.value}
-              role="option"
-              aria-selected={value === option.value}
-              aria-disabled={option.disabled}
-              className={cn(
-                'flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition-colors',
-                value === option.value &&
-                  'bg-primary/10 font-medium text-primary',
-                highlightedIndex === index && 'bg-muted',
-                option.disabled && 'cursor-not-allowed opacity-50',
-                !option.disabled && 'hover:bg-muted'
-              )}
-              onClick={() => !option.disabled && handleSelect(option.value)}
-              onMouseEnter={() => setHighlightedIndex(index)}
-            >
-              {option.icon && <span className="shrink-0">{option.icon}</span>}
-              <span className="flex-1 truncate">{option.label}</span>
-              {value === option.value && (
-                <Check className="h-4 w-4 shrink-0 text-primary" />
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* Options panel (Hidden if using functionality via native select predominantly,
+          but usually we want native ONLY on mobile.
+          For this quick fix, we overlay native select ALWAYS if the user acts on it?
+          Actually, if native select is present and covering, the custom dropdown logic won't trigger
+          because click hits select.
+          So we don't render the Custom dropdown if we want native behavior.
+          The user issue was clipping. Native select solves clipping.
+          So we might just rely on native select.
+      */}
     </div>
   );
 }

@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { getCurrencySymbol } from '@/lib/utils/formatCurrency';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 
+const UNITS = ['pcs', 'kg', 'g', 'lb', 'oz', 'l', 'ml', 'pkg'];
+
 interface Item {
   id: string;
   name: string;
@@ -38,6 +40,7 @@ export function ListItemCard({ item, listId, mode }: ListItemCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(item.name);
   const [editQuantity, setEditQuantity] = useState(item.quantity);
+  const [editUnit, setEditUnit] = useState(item.unit || 'pcs');
   const [showMenu, setShowMenu] = useState(false);
   const currency = useSettingsStore((s) => s.currency);
   const currencySymbol = getCurrencySymbol(currency);
@@ -80,6 +83,7 @@ export function ListItemCard({ item, listId, mode }: ListItemCardProps) {
     const changes: Record<string, unknown> = {};
     if (editName.trim() !== item.name) changes.name = editName.trim();
     if (editQuantity !== item.quantity) changes.quantity = editQuantity;
+    if (editUnit !== (item.unit || 'pcs')) changes.unit = editUnit;
 
     if (Object.keys(changes).length === 0) {
       setIsEditing(false);
@@ -96,14 +100,25 @@ export function ListItemCard({ item, listId, mode }: ListItemCardProps) {
       console.error('Failed to update item:', error);
       setEditName(item.name);
       setEditQuantity(item.quantity);
+      setEditUnit(item.unit || 'pcs');
     }
-  }, [editName, editQuantity, item.id, item.name, item.quantity, updateItem]);
+  }, [
+    editName,
+    editQuantity,
+    editUnit,
+    item.id,
+    item.name,
+    item.quantity,
+    item.unit,
+    updateItem,
+  ]);
 
   const handleCancelEdit = useCallback(() => {
     setIsEditing(false);
     setEditName(item.name);
     setEditQuantity(item.quantity);
-  }, [item.name, item.quantity]);
+    setEditUnit(item.unit || 'pcs');
+  }, [item.name, item.quantity, item.unit]);
 
   return (
     <div
@@ -157,8 +172,19 @@ export function ListItemCard({ item, listId, mode }: ListItemCardProps) {
                     if (e.key === 'Enter') handleSaveEdit();
                     if (e.key === 'Escape') handleCancelEdit();
                   }}
-                  className="h-8 w-16 rounded-lg border border-input bg-background px-2 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className="h-8 w-14 rounded-l-lg border border-input bg-background px-2 text-center text-sm [appearance:textfield] focus:z-10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
+                <select
+                  value={editUnit}
+                  onChange={(e) => setEditUnit(e.target.value)}
+                  className="h-8 w-14 rounded-r-lg border-y border-r border-input bg-background px-1 text-xs focus:z-10 focus:outline-none"
+                >
+                  {UNITS.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
               </div>
             ) : (
               <p
