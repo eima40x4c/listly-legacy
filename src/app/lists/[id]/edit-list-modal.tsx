@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
 import { Button, Input } from '@/components/ui';
+import { cn } from '@/lib/utils';
 
 interface EditListModalProps {
   listId: string;
@@ -45,9 +46,12 @@ export function EditListModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+      // ... (existing submit logic)
       setError('');
 
       if (!name.trim()) {
@@ -86,8 +90,7 @@ export function EditListModal({
   );
 
   const handleDelete = useCallback(async () => {
-    if (!confirm(`Delete "${listName}"? This action cannot be undone.`)) return;
-
+    // Replaced confirm with state
     setIsSubmitting(true);
 
     try {
@@ -105,140 +108,188 @@ export function EditListModal({
       setError(err instanceof Error ? err.message : 'Failed to delete list');
       setIsSubmitting(false);
     }
-  }, [listId, listName, router]);
+  }, [listId, router]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-lg bg-background p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Edit List</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="name" className="mb-2 block text-sm font-medium">
-              List Name
-            </label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="My Shopping List"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isSubmitting}
-            />
+    <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div
+        className="animate-in zoom-in-95 w-full max-w-md overflow-hidden rounded-xl bg-background shadow-xl"
+        role="dialog"
+        aria-modal="true"
+      >
+        {showDeleteConfirm ? (
+          <div className="p-6">
+            <h3 className="mb-2 text-lg font-semibold">Delete List?</h3>
+            <p className="mb-6 text-sm text-muted-foreground">
+              Are you sure you want to delete "{listName}"? This action cannot
+              be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleDelete}
+                isLoading={isSubmitting}
+              >
+                Delete
+              </Button>
+            </div>
           </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <h2 className="text-lg font-semibold">Edit List</h2>
+              <button
+                onClick={onClose}
+                className="rounded-full p-1 transition-colors hover:bg-muted"
+              >
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+            </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium">
-              <Tag className="mb-1 inline h-4 w-4" /> Icon
-            </label>
-            <div className="grid grid-cols-8 gap-2">
-              {ICONS.map((emoji) => (
-                <button
-                  key={emoji}
+            <form onSubmit={handleSubmit} className="space-y-5 p-6">
+              <div>
+                <label
+                  htmlFor="name"
+                  className="mb-1.5 block text-sm font-medium"
+                >
+                  List Name
+                </label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="My Shopping List"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  <Tag className="mb-1 mr-1.5 inline h-3.5 w-3.5" /> Icon
+                </label>
+                <div className="grid grid-cols-8 gap-2">
+                  {ICONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setIcon(emoji)}
+                      className={cn(
+                        'flex aspect-square items-center justify-center rounded-lg text-xl transition-all',
+                        icon === emoji
+                          ? 'scale-110 bg-primary/10 ring-2 ring-primary'
+                          : 'hover:bg-muted'
+                      )}
+                      disabled={isSubmitting}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  <Palette className="mb-1 mr-1.5 inline h-3.5 w-3.5" /> Color
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  {COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setColor(c)}
+                      className={cn(
+                        'h-8 w-8 rounded-full transition-transform',
+                        color === c
+                          ? 'scale-110 ring-2 ring-offset-2 ring-offset-background'
+                          : 'hover:scale-105'
+                      )}
+                      style={{
+                        backgroundColor: c,
+                        borderColor: color === c ? 'transparent' : undefined,
+                      }}
+                      disabled={isSubmitting}
+                      aria-label={`Color ${c}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="budget"
+                  className="mb-1.5 block text-sm font-medium"
+                >
+                  Budget{' '}
+                  <span className="font-normal text-muted-foreground">
+                    (Optional)
+                  </span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-medium text-muted-foreground">
+                    $
+                  </span>
+                  <Input
+                    id="budget"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
+                    className="pl-7 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  isLoading={isSubmitting}
+                >
+                  Save Changes
+                </Button>
+                <Button
                   type="button"
-                  onClick={() => setIcon(emoji)}
-                  className={`rounded border-2 p-2 text-2xl transition-colors ${
-                    icon === emoji
-                      ? 'border-primary bg-primary/10'
-                      : 'border-transparent hover:border-muted'
-                  }`}
+                  variant="outline"
+                  className="flex-1"
+                  onClick={onClose}
                   disabled={isSubmitting}
                 >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </div>
+                  Cancel
+                </Button>
+              </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium">
-              <Palette className="mb-1 inline h-4 w-4" /> Color
-            </label>
-            <div className="grid grid-cols-8 gap-2">
-              {COLORS.map((c) => (
-                <button
-                  key={c}
+              <div className="border-t pt-4">
+                <Button
                   type="button"
-                  onClick={() => setColor(c)}
-                  className={`h-10 w-10 rounded-full border-2 transition-transform ${
-                    color === c
-                      ? 'scale-110 border-primary'
-                      : 'border-transparent hover:scale-105'
-                  }`}
-                  style={{ backgroundColor: c }}
+                  variant="ghost"
+                  className="w-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setShowDeleteConfirm(true)}
                   disabled={isSubmitting}
-                  aria-label={`Color ${c}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="budget" className="mb-2 block text-sm font-medium">
-              Budget (Optional)
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                $
-              </span>
-              <Input
-                id="budget"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-                className="pl-7"
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              className="flex-1"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
-
-          <div className="border-t pt-4">
-            <Button
-              type="button"
-              variant="danger"
-              className="w-full"
-              onClick={handleDelete}
-              disabled={isSubmitting}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete List
-            </Button>
-          </div>
-        </form>
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete List
+                </Button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );

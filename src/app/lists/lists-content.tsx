@@ -22,15 +22,6 @@ export function ListsContent() {
   const searchParams = useSearchParams();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Auto-open create modal when ?createList=true (from onboarding CTA)
-  useEffect(() => {
-    if (searchParams.get('createList') === 'true') {
-      setShowCreateModal(true);
-      // Clean URL without reloading
-      window.history.replaceState({}, '', '/lists');
-    }
-  }, [searchParams]);
-
   // Fetch lists
   const {
     data: listsResponse,
@@ -75,6 +66,22 @@ export function ListsContent() {
     );
   }, [filteredLists]);
 
+  // Auto-open create modal when ?createList=true (from onboarding CTA)
+  // Only if the user has no lists yet, to prevent annoyance for existing users
+  const hasNoLists =
+    !isLoading &&
+    regularLists.length === 0 &&
+    templateLists.length === 0 &&
+    !searchQuery;
+
+  useEffect(() => {
+    if (!isLoading && hasNoLists && searchParams.get('createList') === 'true') {
+      setShowCreateModal(true);
+      // Clean URL without reloading
+      window.history.replaceState({}, '', '/lists');
+    }
+  }, [isLoading, hasNoLists, searchParams]);
+
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   }, []);
@@ -94,13 +101,6 @@ export function ListsContent() {
       </AppShell>
     );
   }
-
-  // Empty state (no lists at all)
-  const hasNoLists =
-    !isLoading &&
-    regularLists.length === 0 &&
-    templateLists.length === 0 &&
-    !searchQuery;
 
   return (
     <AppShell>

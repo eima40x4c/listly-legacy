@@ -16,7 +16,7 @@ import type {
   PantryItemQuery,
   UpdatePantryItemInput,
 } from '@/lib/validation/schemas/pantry-item';
-import { PantryRepository, withTransaction } from '@/repositories';
+import { PantryRepository } from '@/repositories';
 import type { PantryItemWithDetails } from '@/repositories/interfaces/pantry-repository.interface';
 
 import type { IPaginatedResponse } from './interfaces/base-service.interface';

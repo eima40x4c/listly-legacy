@@ -1,0 +1,64 @@
+// Prisma Schema Template — SOP-101
+// Replace all [Entity] / [Parent] / [Child] placeholders with your actual names.
+//
+// NOTE: This is a TEMPLATE file, not a valid Prisma schema.
+// Copy patterns to your prisma/schema.prisma and replace placeholders.
+//
+// For Prisma v6+, configure the database connection in prisma.config.ts
+// or pass it via PrismaClient constructor. The datasource block below
+// only declares the provider.
+
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// Base pattern: simple model with timestamps
+// ============================================
+// model [Entity] {
+//   id        String   @id @default(cuid())
+//   // ... your fields
+//   createdAt DateTime @default(now()) @map("created_at")
+//   updatedAt DateTime @updatedAt @map("updated_at")
+//
+//   @@map("[entities]")
+// }
+
+// ============================================
+// One-to-many: Parent → Children
+// ============================================
+// model [Parent] { children [Child][] }
+// model [Child]  { parentId String; parent [Parent] @relation(fields: [parentId], references: [id]) }
+
+// ============================================
+// Many-to-many with extra fields (explicit join table)
+// ============================================
+// model [EntityA] { memberships [JoinModel][] }
+// model [EntityB] { memberships [JoinModel][] }
+// model [JoinModel] {
+//   id        String   @id @default(cuid())
+//   role      String   @default("member")
+//   entityAId String
+//   entityA   [EntityA] @relation(fields: [entityAId], references: [id])
+//   entityBId String
+//   entityB   [EntityB] @relation(fields: [entityBId], references: [id])
+//   @@unique([entityAId, entityBId])
+// }
+
+// ============================================
+// Soft deletes pattern
+// ============================================
+// Add to any model: deletedAt DateTime? @map("deleted_at")
+
+// ============================================
+// Self-referential (tree/hierarchy)
+// ============================================
+// parentId String?
+// parent   [Entity]? @relation("Tree", fields: [parentId], references: [id])
+// children [Entity][] @relation("Tree")

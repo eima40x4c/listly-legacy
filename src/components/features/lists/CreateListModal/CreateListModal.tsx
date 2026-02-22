@@ -11,6 +11,7 @@
 
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ChevronDown,
   Minus,
@@ -23,7 +24,11 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
+import { CustomSelect } from '@/components/ui/CustomSelect/CustomSelect';
 import { Input } from '@/components/ui/Input';
+import { useCategories } from '@/hooks/api/useCategories';
+import { useCreateList, useLists } from '@/hooks/api/useLists';
+import { COMMON_ITEMS } from '@/lib/constants/common-items';
 import { cn } from '@/lib/utils';
 import { getCurrencySymbol } from '@/lib/utils/formatCurrency';
 import { useSettingsStore } from '@/stores/useSettingsStore';
@@ -37,7 +42,20 @@ interface CreateListModalProps {
 interface ListItem {
   name: string;
   quantity: number;
+  categoryId?: string;
+  unit?: string;
 }
+
+const PRESET_NAMES = [
+  'Groceries',
+  'Weekly Shopping',
+  'Hardware Store',
+  'Pharmacy',
+  'Party Supplies',
+  'Weekend Trip',
+  'Meal Prep',
+  'Costco Run',
+];
 
 const ICON_OPTIONS = [
   '🛒',
@@ -89,6 +107,8 @@ const COLOR_OPTIONS = [
   '#78716c',
 ];
 
+const UNITS = ['pcs', 'kg', 'g', 'lb', 'oz', 'ml', 'l'];
+
 export function CreateListModal({
   isOpen,
   onClose,
@@ -108,9 +128,35 @@ export function CreateListModal({
   const [itemInput, setItemInput] = useState('');
   const [showCustomize, setShowCustomize] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmDiscard, setShowConfirmDiscard] = useState(false);
 
   // Button pulse animation state
   const [shouldPulse, setShouldPulse] = useState(false);
+
+  // Suggestions logic
+  const { data: existingLists } = useLists({ limit: 100 });
+
+  const suggestionSource = useMemo(() => {
+    const listNames = existingLists?.map((l) => l.name) || [];
+    return Array.from(new Set([...PRESET_NAMES, ...listNames]));
+  }, [existingLists]);
+
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+
+  const nameSuggestions = useMemo(() => {
+    if (!name.trim()) return [];
+    const lower = name.toLowerCase();
+    return suggestionSource
+      .filter(
+        (s) => s.toLowerCase().includes(lower) && s.toLowerCase() !== lower
+      )
+      .slice(0, 5);
+  }, [name, suggestionSource]);
+
+  const handleNameSelect = (suggestion: string) => {
+    setName(suggestion);
+    setShowNameSuggestions(false);
+  };
 
   // Required: name + at least 1 item
   const isFormValid = useMemo(
@@ -138,19 +184,130 @@ export function CreateListModal({
       setItemInput('');
       setShowCustomize(false);
       setShouldPulse(false);
+      setShowConfirmDiscard(false);
     }
   }, [isOpen]);
 
-  const handleAddItem = useCallback(() => {
-    const trimmed = itemInput.trim();
-    if (trimmed && !items.some((i) => i.name === trimmed)) {
-      setItems((prev) => [...prev, { name: trimmed, quantity: 1 }]);
-      setItemInput('');
-      // Pulse the create button after adding item
-      setShouldPulse(true);
-      setTimeout(() => setShouldPulse(false), 1200);
+  // --- Item Logic ---
+  const { data: categoriesResponse } = useCategories();
+  const categories = useMemo(
+    () => categoriesResponse?.data || [],
+    [categoriesResponse]
+  );
+
+  const categoryOptions = useMemo(() => {
+    return [
+      { value: 'uncategorized', label: 'Uncategorized' },
+      ...categories.map((c) => ({
+        value: c.id,
+        label: c.name,
+        icon: <span>{c.icon}</span>,
+      })),
+    ];
+  }, [categories]);
+
+  // ... (in component)
+
+  // Derive known items for autocomplete & auto-categorization
+  const knownItems = useMemo(() => {
+    const map = new Map<string, { name: string; categoryId?: string }>();
+
+    // Add common items first
+    COMMON_ITEMS.forEach((item) => {
+      map.set(item.name.toLowerCase(), {
+        name: item.name,
+        // We need to map common item category IDs to actual category IDs if possible,
+        // but for now we just use the string.
+        // Actually, CreateListModal expects categoryId to be a UUID if we use the select.
+        // But wait, the categories from DB have UUIDs. COMMON_ITEMS have 'produce'.
+        // We might need to map them or leave them uncategorized if no match.
+        // Let's just use the name for suggestion and leave category logic for later or simple matching.
+        // For now, let's NOT map categoryId from COMMON_ITEMS unless we have a mapping.
+      });
+    });
+
+    existingLists?.forEach((list) => {
+      list.items?.forEach((item) => {
+        if (item.name) {
+          map.set(item.name.toLowerCase(), {
+            name: item.name,
+            categoryId: item.category?.id,
+          });
+        }
+      });
+    });
+    return map;
+  }, [existingLists]);
+
+  const [showItemSuggestions, setShowItemSuggestions] = useState(false);
+
+  const itemSuggestions = useMemo(() => {
+    if (!itemInput.trim()) return [];
+    const lower = itemInput.toLowerCase();
+    const matches: string[] = [];
+
+    // Check known items (includes common items now)
+    for (const [key, val] of knownItems.entries()) {
+      if (key.includes(lower) && key !== lower) {
+        matches.push(val.name);
+      }
     }
-  }, [itemInput, items]);
+
+    // Fallback to searching COMMON_ITEMS directly if not in knownItems (double check)
+    // Actually knownItems already has them.
+
+    // Limit to 5
+    return matches.slice(0, 5);
+  }, [itemInput, knownItems]);
+
+  const handleAddItem = useCallback(
+    (itemNameOverride?: string) => {
+      const nameToAdd =
+        typeof itemNameOverride === 'string'
+          ? itemNameOverride
+          : itemInput.trim();
+      if (!nameToAdd) return;
+
+      if (
+        !items.some((i) => i.name.toLowerCase() === nameToAdd.toLowerCase())
+      ) {
+        const known = knownItems.get(nameToAdd.toLowerCase());
+
+        setItems((prev) => [
+          ...prev,
+          {
+            name: known?.name || nameToAdd,
+            quantity: 1,
+            categoryId: known?.categoryId, // Auto-categorize if known
+          },
+        ]);
+        setItemInput('');
+        setShowItemSuggestions(false);
+
+        // Pulse the create button after adding item
+        setShouldPulse(true);
+        setTimeout(() => setShouldPulse(false), 1200);
+      }
+    },
+    [itemInput, items, knownItems]
+  );
+
+  const handleUpdateItemCategory = useCallback(
+    (itemName: string, categoryId: string) => {
+      setItems((prev) =>
+        prev.map((item) =>
+          item.name === itemName
+            ? {
+                ...item,
+                categoryId:
+                  categoryId === 'uncategorized' ? undefined : categoryId,
+              }
+            : item
+        )
+      );
+    },
+    []
+  );
 
   const handleRemoveItem = useCallback((itemName: string) => {
     setItems((prev) => prev.filter((i) => i.name !== itemName));
@@ -179,6 +336,9 @@ export function CreateListModal({
     [handleAddItem]
   );
 
+  const createListMutation = useCreateList();
+  const queryClient = useQueryClient();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid || isSubmitting) return;
@@ -186,47 +346,86 @@ export function CreateListModal({
     setIsSubmitting(true);
 
     try {
-      // Use the correct API endpoint
-      const response = await fetch('/api/v1/lists', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim() || undefined,
-          icon: selectedIcon,
-          color: selectedColor,
-          budget: budget ? parseFloat(budget) : undefined,
-        }),
+      // 1. Fire the Create List Mutation (Optimistic)
+      const listData = await createListMutation.mutateAsync({
+        name: name.trim(),
+        description: description.trim() || undefined,
+        icon: selectedIcon,
+        color: selectedColor,
+        budget: budget ? parseFloat(budget) : undefined,
       });
 
-      if (!response.ok) throw new Error('Failed to create list');
+      const newListId = listData?.id || `temp-list-${Date.now()}`;
 
-      const data = await response.json();
-      const newList = data.data || data;
+      // 2. Add Items Optimistically using raw caching or a hook if available
+      // Since useCreateItem requires a listId, and offline temp lists won't work perfectly
+      // without server IDs, we'll manually push them to the queryClient queue or use standard fetch if online.
+      if (items.length > 0) {
+        if (!navigator.onLine) {
+          // Queue items for later or optimistically push them onto the list cache
+          const previousItems = queryClient.getQueryData<{ data: unknown[] }>([
+            'items',
+            'list',
+            newListId,
+          ]);
 
-      // Add items if present
-      if (items.length > 0 && newList.id) {
-        await Promise.all(
-          items.map((item) =>
-            fetch(`/api/v1/lists/${newList.id}/items`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name: item.name,
-                quantity: item.quantity,
-              }),
-            })
-          )
-        );
+          queryClient.setQueryData(['items', 'list', newListId], {
+            ...previousItems,
+            data: items.map((item, idx) => ({
+              id: `temp-item-${Date.now()}-${idx}`,
+              listId: newListId,
+              name: item.name,
+              quantity: item.quantity,
+              isChecked: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            })),
+          });
+        } else {
+          await Promise.all(
+            items.map((item) =>
+              fetch(`/api/v1/lists/${newListId}/items`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: item.name,
+                  quantity: item.quantity,
+                  unit: item.unit,
+                  categoryId: item.categoryId,
+                }),
+              })
+            )
+          );
+        }
       }
 
       onSuccess?.();
       onClose();
-      router.refresh();
+      if (navigator.onLine) {
+        router.refresh();
+      }
     } catch {
       // Error handling
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Check if form is dirty
+  const isDirty = useMemo(
+    () =>
+      name.trim().length > 0 ||
+      items.length > 0 ||
+      description.trim().length > 0 ||
+      budget !== '',
+    [name, items, description, budget]
+  );
+
+  const handleClose = () => {
+    if (isDirty) {
+      setShowConfirmDiscard(true);
+    } else {
+      onClose();
     }
   };
 
@@ -236,27 +435,51 @@ export function CreateListModal({
     <>
       {/* Backdrop */}
       <div
-        className="animate-modal-backdrop fixed inset-0 z-50 bg-black/50"
-        onClick={onClose}
+        className="animate-modal-backdrop fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+        onClick={handleClose}
         aria-hidden="true"
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
         <div
-          className="animate-modal-enter relative max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border bg-background shadow-2xl sm:max-w-lg sm:rounded-2xl"
+          className="animate-modal-enter relative flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl sm:max-w-lg"
           role="dialog"
           aria-modal="true"
           aria-label="Create new list"
         >
+          {/* Custom Confirm Discard Overlay */}
+          {showConfirmDiscard && (
+            <div className="animate-in fade-in absolute inset-0 z-[60] flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
+              <div className="w-full max-w-sm rounded-xl border bg-card p-6 shadow-lg">
+                <h3 className="mb-2 text-lg font-semibold">Discard changes?</h3>
+                <p className="mb-6 text-sm text-muted-foreground">
+                  You have unsaved changes. Are you sure you want to discard
+                  them?
+                </p>
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowConfirmDiscard(false)}
+                  >
+                    Keep Editing
+                  </Button>
+                  <Button variant="danger" onClick={onClose}>
+                    Discard
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header */}
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-6 py-4">
+          <div className="flex shrink-0 items-center justify-between border-b bg-background px-6 py-4">
             <div className="flex items-center gap-2">
               <ShoppingCart className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Create List</h2>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Close"
             >
@@ -265,9 +488,14 @@ export function CreateListModal({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5 p-6">
+          <form
+            onSubmit={handleSubmit}
+            className="scrollbar-thin flex-1 space-y-5 overflow-y-auto p-6"
+            autoComplete="off"
+          >
+            {/* ... form content ... */}
             {/* ===== 1. List Name (required) ===== */}
-            <div>
+            <div className="relative">
               <label
                 className="mb-1.5 block text-sm font-medium"
                 htmlFor="list-name"
@@ -278,10 +506,37 @@ export function CreateListModal({
                 id="list-name"
                 placeholder="e.g. Weekly Groceries"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setShowNameSuggestions(true);
+                }}
+                onFocus={() => setShowNameSuggestions(true)}
+                onBlur={() =>
+                  setTimeout(() => setShowNameSuggestions(false), 200)
+                }
                 autoFocus
                 required
+                autoComplete="off"
               />
+              {/* Suggestions Dropdown */}
+              {showNameSuggestions && nameSuggestions.length > 0 && (
+                <div className="animate-in fade-in zoom-in-95 absolute top-full z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md ring-1 ring-black/5 duration-100">
+                  <ul className="max-h-40 overflow-auto py-1">
+                    {nameSuggestions.map((suggestion) => (
+                      <li key={suggestion}>
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2 text-left text-sm transition-colors hover:bg-muted"
+                          onMouseDown={(e) => e.preventDefault()} // Prevent blur
+                          onClick={() => handleNameSelect(suggestion)}
+                        >
+                          {suggestion}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             {/* ===== 2. Description (optional) ===== */}
@@ -310,17 +565,46 @@ export function CreateListModal({
                 Items <span className="text-destructive">*</span>
               </label>
               <div className="flex gap-2">
-                <Input
-                  placeholder="Add an item..."
-                  value={itemInput}
-                  onChange={(e) => setItemInput(e.target.value)}
-                  onKeyDown={handleItemKeyDown}
-                />
+                <div className="relative flex-1">
+                  <Input
+                    placeholder="Add an item..."
+                    value={itemInput}
+                    onChange={(e) => {
+                      setItemInput(e.target.value);
+                      setShowItemSuggestions(true);
+                    }}
+                    onFocus={() => setShowItemSuggestions(true)}
+                    onBlur={() =>
+                      setTimeout(() => setShowItemSuggestions(false), 200)
+                    }
+                    onKeyDown={handleItemKeyDown}
+                    autoComplete="off"
+                  />
+                  {/* Item Suggestions */}
+                  {showItemSuggestions && itemSuggestions.length > 0 && (
+                    <div className="animate-in fade-in zoom-in-95 absolute top-full z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md ring-1 ring-black/5 duration-100">
+                      <ul className="max-h-40 overflow-auto py-1">
+                        {itemSuggestions.map((suggestion) => (
+                          <li key={suggestion}>
+                            <button
+                              type="button"
+                              className="w-full px-4 py-2 text-left text-sm transition-colors hover:bg-muted"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => handleAddItem(suggestion)}
+                            >
+                              {suggestion}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={handleAddItem}
+                  onClick={() => handleAddItem()}
                   disabled={!itemInput.trim()}
                   className="shrink-0 px-3"
                 >
@@ -336,27 +620,63 @@ export function CreateListModal({
                       key={item.name}
                       className="animate-slide-in-top flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2"
                     >
-                      <span className="flex-1 text-sm">{item.name}</span>
+                      <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
+                        <span className="truncate text-sm font-medium">
+                          {item.name}
+                        </span>
+                        {/* Category Selector */}
+                        <CustomSelect
+                          options={categoryOptions}
+                          value={item.categoryId || 'uncategorized'}
+                          onChange={(val) =>
+                            handleUpdateItemCategory(item.name, val)
+                          }
+                          className="w-full max-w-[150px] border-none bg-transparent p-0 shadow-none hover:bg-transparent"
+                        />
+                      </div>
 
                       {/* Quantity controls */}
-                      <div className="flex items-center gap-1">
+                      <div className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
                           onClick={() => handleQuantityChange(item.name, -1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
+                          className="flex h-7 w-7 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
                           disabled={item.quantity <= 1}
                         >
-                          <Minus className="h-3 w-3" />
+                          <Minus className="h-3.5 w-3.5" />
                         </button>
-                        <span className="w-8 text-center text-sm font-medium">
-                          {item.quantity}
+                        <span className="w-16 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-sm font-medium">
+                              {item.quantity}
+                            </span>
+                            <select
+                              className="w-10 bg-transparent text-xs text-muted-foreground focus:outline-none"
+                              value={item.unit}
+                              onChange={(e) => {
+                                setItems((prev) =>
+                                  prev.map((i) =>
+                                    i.name === item.name
+                                      ? { ...i, unit: e.target.value }
+                                      : i
+                                  )
+                                );
+                              }}
+                            >
+                              {UNITS.map((u) => (
+                                <option key={u} value={u}>
+                                  {u}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </span>
                         <button
                           type="button"
                           onClick={() => handleQuantityChange(item.name, 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-muted"
+                          className="flex h-7 w-7 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-muted"
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-3.5 w-3.5" />
                         </button>
                       </div>
 
@@ -364,10 +684,10 @@ export function CreateListModal({
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(item.name)}
-                        className="ml-1 rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        className="ml-1 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                         aria-label={`Remove ${item.name}`}
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
                   ))}
@@ -505,7 +825,7 @@ export function CreateListModal({
               <Button
                 type="button"
                 variant="outline"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={isSubmitting}
               >
                 Cancel

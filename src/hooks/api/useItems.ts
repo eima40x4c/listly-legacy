@@ -117,7 +117,42 @@ export function useCreateItem(listId: string) {
       );
       return response.data;
     },
-    onSuccess: () => {
+    onMutate: async (newItemData) => {
+      await queryClient.cancelQueries({ queryKey: itemKeys.list(listId) });
+      const previousItems = queryClient.getQueryData<ItemsResponse>(
+        itemKeys.list(listId)
+      );
+
+      if (previousItems?.data) {
+        // Optimistically add the new item with a temporary ID
+        const tempId = `temp-${Date.now()}`;
+        queryClient.setQueryData<ItemsResponse>(itemKeys.list(listId), {
+          ...previousItems,
+          data: [
+            ...previousItems.data,
+            {
+              id: tempId,
+              listId,
+              name: newItemData.name,
+              quantity: newItemData.quantity || 1,
+              isChecked: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              notes: newItemData.notes,
+              estimatedPrice: newItemData.estimatedPrice,
+            } as ListItem,
+          ],
+        });
+      }
+
+      return { previousItems };
+    },
+    onError: (_err, _newVal, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(itemKeys.list(listId), context.previousItems);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: itemKeys.list(listId) });
       queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
     },
@@ -151,10 +186,29 @@ export function useUpdateItem(listId: string) {
       const response = await api.patch<ItemResponse>(`/items/${itemId}`, data);
       return response.data;
     },
-    onSuccess: (_, { itemId }) => {
-      queryClient.invalidateQueries({
-        queryKey: itemKeys.detail(listId, itemId),
-      });
+    onMutate: async ({ itemId, data }) => {
+      await queryClient.cancelQueries({ queryKey: itemKeys.list(listId) });
+      const previousItems = queryClient.getQueryData<ItemsResponse>(
+        itemKeys.list(listId)
+      );
+
+      if (previousItems?.data) {
+        queryClient.setQueryData<ItemsResponse>(itemKeys.list(listId), {
+          ...previousItems,
+          data: previousItems.data.map((item) =>
+            item.id === itemId ? { ...item, ...data } : item
+          ),
+        });
+      }
+
+      return { previousItems };
+    },
+    onError: (_err, _newVal, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(itemKeys.list(listId), context.previousItems);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: itemKeys.list(listId) });
       queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
     },
@@ -177,10 +231,36 @@ export function useCheckItem(listId: string) {
       });
       return response.data;
     },
-    onSuccess: (_, { itemId }) => {
-      queryClient.invalidateQueries({
-        queryKey: itemKeys.detail(listId, itemId),
-      });
+    onMutate: async ({ itemId, checked }) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: itemKeys.list(listId) });
+
+      // Snapshot the previous value
+      const previousItems = queryClient.getQueryData<ItemsResponse>(
+        itemKeys.list(listId)
+      );
+
+      // Optimistically update to the new value
+      if (previousItems?.data) {
+        queryClient.setQueryData<ItemsResponse>(itemKeys.list(listId), {
+          ...previousItems,
+          data: previousItems.data.map((item) =>
+            item.id === itemId ? { ...item, isChecked: checked } : item
+          ),
+        });
+      }
+
+      // Return a context object with the snapshotted value
+      return { previousItems };
+    },
+    onError: (_err, _newVal, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousItems) {
+        queryClient.setQueryData(itemKeys.list(listId), context.previousItems);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure sync
       queryClient.invalidateQueries({ queryKey: itemKeys.list(listId) });
       queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
     },
@@ -192,7 +272,27 @@ export function useDeleteItem(listId: string) {
 
   return useMutation({
     mutationFn: (itemId: string) => api.delete(`/items/${itemId}`),
-    onSuccess: () => {
+    onMutate: async (itemId) => {
+      await queryClient.cancelQueries({ queryKey: itemKeys.list(listId) });
+      const previousItems = queryClient.getQueryData<ItemsResponse>(
+        itemKeys.list(listId)
+      );
+
+      if (previousItems?.data) {
+        queryClient.setQueryData<ItemsResponse>(itemKeys.list(listId), {
+          ...previousItems,
+          data: previousItems.data.filter((item) => item.id !== itemId),
+        });
+      }
+
+      return { previousItems };
+    },
+    onError: (_err, _newVal, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(itemKeys.list(listId), context.previousItems);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: itemKeys.list(listId) });
       queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
     },
@@ -207,7 +307,27 @@ export function useClearCompletedItems(listId: string) {
       api.delete<{ success: true; data: { deletedCount: number } }>(
         `/lists/${listId}/items/completed`
       ),
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: itemKeys.list(listId) });
+      const previousItems = queryClient.getQueryData<ItemsResponse>(
+        itemKeys.list(listId)
+      );
+
+      if (previousItems?.data) {
+        queryClient.setQueryData<ItemsResponse>(itemKeys.list(listId), {
+          ...previousItems,
+          data: previousItems.data.filter((item) => !item.isChecked),
+        });
+      }
+
+      return { previousItems };
+    },
+    onError: (_err, _newVal, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(itemKeys.list(listId), context.previousItems);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: itemKeys.list(listId) });
       queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
     },

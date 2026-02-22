@@ -13,11 +13,14 @@ import { notFound } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useCallback, useMemo, useState } from 'react';
 
+import { CollaborationIndicator } from '@/components/features/lists/CollaborationIndicator';
 import { Container, Header } from '@/components/layout';
 import { Badge, Button, Input } from '@/components/ui';
 import { ErrorMessage } from '@/components/ui';
 import { useCreateItem, useListItems } from '@/hooks/api/useItems';
 import { useList } from '@/hooks/api/useLists';
+import { useRealtimeList } from '@/hooks/useRealtimeList';
+import { useRealtimePresence } from '@/hooks/useRealtimePresence';
 import { cn } from '@/lib/utils';
 import { getCurrencySymbol } from '@/lib/utils/formatCurrency';
 import { useSettingsStore } from '@/stores/useSettingsStore';
@@ -61,6 +64,12 @@ export function ListDetailContent({ listId }: ListDetailContentProps) {
   } = useListItems(listId);
 
   const createItemMutation = useCreateItem(listId);
+
+  // Real-time subscriptions
+  useRealtimeList(listId);
+  // Cast needed because useRealtimePresence returns PresenceState[] which extends User but TS might be strict
+  // Actually, we can just pass it directly if types align.
+  const activeUsers = useRealtimePresence(listId);
 
   const list = listResponse;
   const items = useMemo(() => itemsResponse || [], [itemsResponse]);
@@ -138,9 +147,13 @@ export function ListDetailContent({ listId }: ListDetailContentProps) {
     });
   }, []);
 
-  const handleFinishShopping = useCallback(async () => {
-    if (!confirm('Mark all items as checked and finish shopping?')) return;
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
+  const handleFinishShopping = useCallback(() => {
+    setShowFinishConfirm(true);
+  }, []);
+
+  const handleFinishShoppingConfirmed = useCallback(async () => {
     try {
       // Mark all unchecked items as checked
       const uncheckedItems = items.filter((item) => !item.isChecked);
@@ -154,7 +167,9 @@ export function ListDetailContent({ listId }: ListDetailContentProps) {
       }
 
       refetchItems();
-      alert('Shopping completed!');
+      // Optional: Show a toast instead of alert, but for now simple alert is replaced by the flow completion
+      // maybe redirect or just show success state?
+      // alert('Shopping completed!'); // Removed as per request to remove raw alerts
     } catch (error) {
       console.error('Failed to finish shopping:', error);
       alert('Failed to complete shopping. Please try again.');
@@ -236,6 +251,11 @@ export function ListDetailContent({ listId }: ListDetailContentProps) {
             </Badge>
           )}
         </div>
+
+        <CollaborationIndicator
+          users={activeUsers}
+          currentUserId={session?.user?.id}
+        />
 
         <Button
           variant="ghost"
@@ -416,6 +436,35 @@ export function ListDetailContent({ listId }: ListDetailContentProps) {
           onClose={() => setShowEditModal(false)}
           onUpdate={() => window.location.reload()}
         />
+      )}
+
+      {/* Finish Shopping Confirmation Modal */}
+      {showFinishConfirm && (
+        <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="animate-in zoom-in-95 w-full max-w-sm rounded-xl border bg-card p-6 shadow-lg">
+            <h3 className="mb-2 text-lg font-semibold">Finish Shopping?</h3>
+            <p className="mb-6 text-sm text-muted-foreground">
+              This will mark all items as checked and complete your trip.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowFinishConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setShowFinishConfirm(false);
+                  handleFinishShoppingConfirmed();
+                }}
+              >
+                Complete
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

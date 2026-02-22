@@ -97,6 +97,7 @@
 | 303 | Form Handling          | ✅     | `src/components/ui/Form/`, `src/components/ui/RadixSelect/`, `src/hooks/useZodForm.ts`, `src/components/features/auth/`, `src/components/features/lists/`                                                                             | Complete - React Hook Form integration, Zod validation, auth forms, shopping list forms                                            |
 | 304 | UI/UX Design           | ✅     | `/docs/frontend/ui-analysis.md`, `/docs/frontend/ui-design/user-flows.md`, `/docs/frontend/ui-design/wireframes.md`, `/docs/frontend/ui-design/component-hierarchies.md`, `/docs/frontend/ui-design/interactions.md`                  | Complete - UI analysis mapping stories to components, user flows, wireframes, hierarchies, interactions & accessibility            |
 | 305 | Page Implementation    | ✅     | `/docs/frontend/pages/`, `src/app/lists/`, `src/app/lists/[id]/`, `src/app/(auth)/`, `src/app/page.tsx`, `src/app/loading.tsx`, `src/app/error.tsx`, `src/app/not-found.tsx`, `src/components/features/lists/ListCard/`               | Complete - Implemented Lists Overview, List Detail (edit/shopping modes), Login/Register pages, global error pages, loading states |
+| 306 | Progressive Web App    | ✅     | `public/manifest.json`, `src/sw.ts`, `src/app/offline/page.tsx`, `docs/frontend/pwa.md`                                                                                                                                               | Complete - Configured Serwist PWA, manifest, icons, offline support, and mobile bottom nav                                         |
 
 ### Phase 4: AI Integration (If Applicable)
 
@@ -206,6 +207,8 @@ These are human-approved and must never be contradicted:
 | UI/UX Design           | `/docs/frontend/ui-analysis.md`, `/docs/frontend/ui-design/*.md`        | All 29 user stories mapped to screens/components |
 | Form Patterns          | SOP-303 outputs in `src/hooks/useZodForm.ts`, `src/components/ui/Form/` | React Hook Form + Zod per tech stack             |
 | API Integration        | `src/lib/api/client.ts`, `src/lib/query-client.ts`, `src/hooks/api/`    | TanStack Query with query keys factory           |
+| PWA Implementation     | `/docs/frontend/pwa.md`                                                 | US-024, US-026 (Offline, Install)                |
+| Real-time Design       | `/docs/frontend/realtime-design.md`                                     | US-007 (Real-time collaboration)                 |
 | Page Planning          | `/docs/frontend/pages/lists-overview.md`, `list-detail.md`, `auth.md`   | 3 of 14 screens planned in detail                |
 
 | Implementation (Level 2) | Location                                              | Traces to Design                                            |
@@ -215,10 +218,11 @@ These are human-approved and must never be contradicted:
 | API Client               | `src/lib/api/client.ts`                               | ApiClientError, fetch-based, handles 204                    |
 | Query Hooks              | `src/hooks/api/` (4 files)                            | Lists, items, categories, users                             |
 | Auth Hooks               | `src/hooks/useAuth.ts`, `src/hooks/usePermissions.ts` | Auth actions, permission checks                             |
+| PWA Support              | `src/sw.ts`, `src/app/manifest.ts`, `offline/`        | Serwist SC + Manifest + Offline page                        |
 
 **Checkpoint Status:** ⚠️ Issues Found
-**Last Run:** 2026-02-12
-**Issues:** Layer 0→1: 88% (Zustand not in designs, no PWA/real-time design docs). Layer 1→2: 82% (no Apple Sign-In, no Zustand, no real-time, no offline). No critical blockers. 5 warnings tracked.
+**Last Run:** 2026-02-18
+**Issues:** Layer 0→1: 95% (Zustand not in designs, but PWA/Real-time designs exist). Layer 1→2: 75% (Real-time hooks/components not implemented, Apple Auth missing in auth.ts, no Zustand). Critical: Real-time features (US-007) are designed but not implemented.
 
 ---
 
@@ -238,91 +242,114 @@ These are human-approved and must never be contradicted:
 
 ---
 
+## 📦 Context Cache
+
+> **AI Agent:** After completing each SOP, cache key outputs here so future SOPs
+> don't need to re-read full prerequisite files. Update inline as you progress.
+
+### Cached Decisions
+
+| Decision        | Value                                        | Source                                  | Set By  |
+| --------------- | -------------------------------------------- | --------------------------------------- | ------- |
+| Framework       | {e.g., Next.js 14}                           | `/docs/tech-stack.md`                   | SOP-001 |
+| Database        | {e.g., PostgreSQL}                           | `/docs/tech-stack.md`                   | SOP-001 |
+| ORM             | {e.g., Prisma}                               | `/docs/tech-stack.md`                   | SOP-001 |
+| Auth            | {e.g., Supabase Auth}                        | `/docs/tech-stack.md`                   | SOP-001 |
+| Styling         | {e.g., Tailwind CSS}                         | `/docs/tech-stack.md`                   | SOP-001 |
+| State Mgmt      | {e.g., React Query + Zustand}                | `/docs/tech-stack.md`                   | SOP-001 |
+| Hosting         | {e.g., Vercel}                               | `/docs/tech-stack.md`                   | SOP-001 |
+| Entities        | {e.g., User, List, Item, ...}                | `/docs/requirements.md`                 | SOP-000 |
+| Branching       | {e.g., GitHub Flow}                          | `CONTRIBUTING.md`                       | SOP-002 |
+| Design Patterns | {e.g., Service + Repository, function-based} | `/docs/architecture/design-patterns.md` | SOP-005 |
+
+### Cached File Locations
+
+| Artifact        | Path                                      | Last Updated By |
+| --------------- | ----------------------------------------- | --------------- |
+| Requirements    | `/docs/requirements.md`                   | SOP-000         |
+| Tech Stack      | `/docs/tech-stack.md`                     | SOP-001         |
+| Execution Brief | `/docs/execution-brief.md`                | Phase 0         |
+| Schema / ERD    | {e.g., `prisma/schema.prisma`}            | SOP-101         |
+| API Spec        | {e.g., `/docs/api/openapi.yaml`}          | SOP-202         |
+| Component Docs  | {e.g., `/docs/frontend/components.md`}    | SOP-300         |
+| Visual Design   | {e.g., `/docs/frontend/visual-design.md`} | SOP-302         |
+| Page Manifest   | {e.g., `/docs/frontend/page-manifest.md`} | SOP-305         |
+
+---
+
 ## 🔄 Current Session
 
 ### Active SOP
 
-**SOP:** SOP-306
-**Title:** Progressive Web App (PWA) - _Optional_
+**SOP:** SOP-400
+**Title:** AI Feasibility Analysis
 **Status:** ⬚ Not Started
 
 ### Context Files to Read
 
 ```
-.sops/phase-3-frontend/SOP-305-page-implementation.md
+.sops/phase-4-ai-integration/SOP-400-ai-feasibility.md
 /docs/requirements.md
-/docs/frontend/ui-design/*.md
-/docs/frontend/pages/*.md
-/docs/components/README.md
 /docs/tech-stack.md
-/src/components/
-/src/hooks/
-/src/app/
 ```
 
 ### Expected Outputs
 
-- [x] `/docs/frontend/pages/[page].md` — Page planning documents
-- [x] `app/[route]/page.tsx` — Server component pages
-- [x] `app/[route]/[page]-content.tsx` — Client content components
-- [x] `app/[route]/loading.tsx` or skeleton components
-- [x] `app/[route]/error.tsx` — Error boundary pages
-- [x] `app/[route]/not-found.tsx` — 404 pages
-- [x] `app/[route]/layout.tsx` — Shared layouts (root layout exists)
+- [ ] `/docs/ai/feasibility.md` — Feasibility analysis
+- [ ] `/docs/ai/prompts.md` — Prompt engineering strategy
+- [ ] `/docs/ai/cost-analysis.md` — Token usage and cost estimates
+
+---
+
+### Iterative SOP Progress
+
+> **AI Agent:** If the current SOP is iterative (SOP-200, 201, 202, or 305), track per-unit progress here. Copy this template for each iterative SOP you execute.
+
+<!--
+### Iterative SOP: SOP-{XXX} — {Title}
+
+**Manifest Approved:** ⬚ / ✅
+
+| # | Work Unit | Status | Output Files | Checkpoint |
+|---|-----------|--------|--------------|------------|
+| 1 | {Unit A}  | ⬚     | {files}      | ⬚         |
+| 2 | {Unit B}  | ⬚     | {files}      | ⬚         |
+| 3 | {Unit C}  | ⬚     | {files}      | ⬚         |
+
+**Coverage:** 0/{total} units complete
+**Status Legend:** ⬚ Not Started · 🔄 In Progress · ✅ Complete
+-->
 
 ---
 
 ## 📝 Session Prompt Template
 
+> **AI Agent:** When updating this section, select the correct **Prompt Pattern** from `AI-GUIDE.md` → "Prompt Patterns" based on the current situation:
+>
+> | Situation                                       | Pattern to Use                               |
+> | ----------------------------------------------- | -------------------------------------------- |
+> | Executing a single non-iterative SOP            | **Pattern 1:** Execute a Single SOP          |
+> | Resuming from a previous session                | **Pattern 2:** Continue From Last Session    |
+> | Executing multiple related SOPs in sequence     | **Pattern 3:** Execute Multiple Related SOPs |
+> | Reviewing/verifying completed SOP outputs       | **Pattern 4:** Review and Verify             |
+> | Starting a brand new session (context recovery) | **Pattern 5:** Recover Context               |
+> | Executing an iterative SOP (200, 201, 202, 305) | **Pattern 6:** Execute Iterative SOP         |
+>
+> Copy the matching pattern template from `AI-GUIDE.md`, fill in the project-specific values, and replace the prompt below.
+
 ```markdown
-## Context
+Execute SOP-400 (AI Feasibility Analysis).
 
-I'm working on Listly - Smart Shopping Companion: Mobile-first PWA for smart shopping list management with real-time collaboration, AI suggestions, and pantry tracking.
+Read:
 
-**Project location:** /home/eima40x4c/Projects/listly
-**Session tracker:** `.prompts/AI-SESSION.md`
-**SOPs location:** `.sops/`
+- `.prompts/AI-SESSION.md` for context and cached decisions
+- `.sops/phase-4-ai-integration/SOP-400-ai-feasibility.md` for the procedure
+- `/docs/requirements.md` for AI-related user stories
+- `/docs/tech-stack.md` for current stack constraints
 
-## Completed Work
-
-The following SOPs have been completed:
-
-- Phase 0: Initialization (SOPs 000-006)
-  - Requirements Gathering, Tech Stack, Repository Setup, Project Structure
-  - Environment Setup, Design Patterns, Code Style Standards
-- Phase 1: Database (SOPs 100-102)
-  - Database Selection, Schema Design, Seed Data
-- Phase 2: Backend (SOPs 200-206)
-  - Service Layer, API Design, Authentication, Authorization
-  - Error Handling, Validation, Repository Pattern
-- Phase 3: Frontend (SOPs 300-304)
-  - Component Architecture (14 production-ready components)
-  - Styling Standards (Tailwind CSS configuration, dark mode support)
-  - API Integration (TanStack Query, API client with error handling, query hooks)
-  - Form Handling (React Hook Form with Zod validation, auth and shopping forms)
-  - UI/UX Design (UI analysis, user flows, wireframes, component hierarchies, interactions)
-
-## Current Task
-
-Execute **SOP-305** (Page Implementation).
-
-**Read these files:**
-
-1. .sops/phase-3-frontend/SOP-305-page-implementation.md
-2. /docs/frontend/ui-design/\*.md
-3. /docs/frontend/pages/\*.md (if any exist)
-4. /docs/components/README.md
-5. /src/components/
-6. /src/hooks/
-7. /src/app/
-8. /docs/tech-stack.md
-9. /docs/requirements.md
-
-**Refer to `AI-GUIDE.md` to attend to your responsibilities and for guidance on best practices.**
-**Follow the SOP's Procedure section step by step.**
-**Create all outputs listed in the SOP's Outputs section.**
-**Update `.prompts/AI-SESSION.md` when complete.**
-**Update `.sops/templates/project-checklist.md` and check off deliverables**
+Follow the SOP's Procedure section step by step.
+Create all outputs listed in the SOP's Outputs section.
+Update `.prompts/AI-SESSION.md` when complete (tracker, context cache, session prompt template, session log).
 ```
 
 ---
@@ -1361,68 +1388,7 @@ export const GET = withErrorHandling(async (request) => {
 
 ---
 
-## 🔗 Quick Reference
-
-### Directory Structure
-
-```
-{project-root}/
-├── .prompts/
-│   ├── AI-GUIDE.md       # How to use SOPs with AI agents
-│   └── AI-SESSION.md     # This file (active session tracker)
-├── .sops/
-│   ├── README.md         # SOP index
-│   ├── templates/        # Reusable templates
-│   ├── phase-0-initialization/
-│   ├── phase-1-database/
-│   ├── phase-2-backend/
-│   ├── phase-3-frontend/
-│   ├── phase-4-ai-integration/
-│   ├── phase-5-quality/
-│   └── phase-6-deployment/
-├── docs/                 # Generated documentation
-├── src/                  # Source code
-└── ...
-```
-
-### Recommended SOP Order
-
-```
-Phase 0 (Sequential)
-────────────────────
-000 → 001 → 002 → 003 → 004 → 005 → 006
-
-Phase 1-3 (Can parallelize frontend/backend after DB)
-──────────────────────────────────────────────────────
-100 → 101 → 103
-            ↓
-      ┌─────┴─────┐
-      ↓           ↓
-    Phase 2    Phase 3
-    (Backend)  (Frontend)
-      ↓           ↓
-      └─────┬─────┘
-            ↓
-    Phase 4 (Optional)
-            ↓
-    Phase 5 (Quality)
-            ↓
-    Phase 6 (Deploy)
-```
-
----
-
-## ⚠️ Important Notes
-
-1. **AI manages this file** — Human only provides initial project description
-2. **Always read SOPs first** — Don't assume; follow the documented procedure
-3. **Check prerequisites** — Ensure previous SOP outputs exist before starting
-4. **Update after each SOP** — Keep this tracker current
-5. **Document deviations** — Note any departures from SOPs in the session log
-
----
-
-### Session 19 — 2026-02-11
+### Session 21 — 2026-02-11
 
 **SOPs Completed:** SOP-305 (Page Implementation)
 **Files Created:** 26 new files for complete page implementation
@@ -1527,5 +1493,116 @@ Phase 1-3 (Can parallelize frontend/backend after DB)
 - Planning documents specify data requirements, state management, interactions
 - Component hierarchy matches wireframes from SOP-302
 - Ready for Phase 4 (AI Integration) or Phase 5 (Quality/Testing)
+
+---
+
+### Session 22 — 2026-02-14
+
+**SOPs Completed:** SOP-306 (Progressive Web App)
+**Files Created:**
+
+- `public/manifest.json` — Web App Manifest
+- `src/sw.ts` — Service Worker configuration
+- `src/app/offline/page.tsx` — Offline fallback page
+- `src/hooks/use-pwa-install.ts` — PWA install prompt hook
+- `src/components/navigation/bottom-nav.tsx` — Mobile bottom navigation
+- `docs/frontend/pwa.md` — PWA documentation
+
+**Notes:**
+
+- Implemented Serwist for service worker management
+- Added mobile-optimized bottom navigation
+- Generated app icons and configured metadata
+- Verified offline mode and install prompts
+
+---
+
+### Session 20 — 2026-02-14
+
+**SOPs Completed:** Backend Gap Implementation (Pantry, Recipes, Meal Plans), Performance Optimization
+**Files Created:**
+
+- **Backend Modules:**
+  - `src/repositories/*.repository.ts` — Pantry, Recipe, MealPlan repositories
+  - `src/services/*.service.ts` — Corresponding services
+  - `src/app/api/v1/*` — API routes for all new modules
+  - `src/lib/validation/schemas/*.ts` — Validation schemas
+- **Frontend Integration:**
+  - `src/lib/api/*.ts` — API clients
+  - `src/hooks/*.ts` — `usePantry`, `useRecipes`, `useMealPlans`
+  - `src/app/pantry/page.tsx`, `src/app/recipes/page.tsx`, `src/app/meals/page.tsx` — Feature pages
+- **Performance:**
+  - `src/lib/auth.config.ts` — Edge-compatible auth config
+  - `src/middleware.ts` — Optimized middleware (removed heavy dependencies)
+  - `next.config.mjs` — Added `optimizePackageImports`
+
+**Implementation Highlights:**
+
+- **Backend Gaps Filled:** Implemented full CRUD for Pantry, Recipes, and Meal Plans, aligning backend with initial requirements.
+- **Frontend Integration:** Connected UI to new backend endpoints using TanStack Query hooks.
+- **Performance Boost:** Reduced application startup time from ~8.4s to ~6.5s by splitting auth configuration and optimizing usage of heavy libraries (Prisma, bcrypt) in middleware.
+- **Linting & Code Quality:** Fixed circular dependencies and type errors in auth module.
+- **Git Config:** Resolved authentication issues by verifying SSH/HTTPS and reverting to HTTPS for PAT usage.
+
+---
+
+## 🔗 Quick Reference
+
+### Directory Structure
+
+```
+{project-root}/
+├── .prompts/
+│   ├── AI-GUIDE.md       # How to use SOPs with AI agents
+│   └── AI-SESSION.md     # This file (active session tracker)
+├── .sops/
+│   ├── README.md         # SOP index
+│   ├── templates/        # Reusable templates
+│   ├── phase-0-initialization/
+│   ├── phase-1-database/
+│   ├── phase-2-backend/
+│   ├── phase-3-frontend/
+│   ├── phase-4-ai-integration/
+│   ├── phase-5-quality/
+│   └── phase-6-deployment/
+├── docs/                 # Generated documentation
+├── src/                  # Source code
+└── ...
+```
+
+### Recommended SOP Order
+
+```
+Phase 0 (Sequential)
+────────────────────
+000 → 001 → 002 → 003 → 004 → 005 → 006
+
+Phase 1-3 (Can parallelize frontend/backend after DB)
+──────────────────────────────────────────────────────
+100 → 101 → 103
+            ↓
+      ┌─────┴─────┐
+      ↓           ↓
+    Phase 2    Phase 3
+    (Backend)  (Frontend)
+      ↓           ↓
+      └─────┬─────┘
+            ↓
+    Phase 4 (Optional)
+            ↓
+    Phase 5 (Quality)
+            ↓
+    Phase 6 (Deploy)
+```
+
+---
+
+## ⚠️ Important Notes
+
+1. **AI manages this file** — Human only provides initial project description
+2. **Always read SOPs first** — Don't assume; follow the documented procedure
+3. **Check prerequisites** — Ensure previous SOP outputs exist before starting
+4. **Update after each SOP** — Keep this tracker current
+5. **Document deviations** — Note any departures from SOPs in the session log
 
 ---

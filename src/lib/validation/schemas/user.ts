@@ -17,11 +17,17 @@ import { email, id, name, password } from '../common';
  * - Password (required, strong password rules)
  * - Name (required, 1-100 characters)
  */
-export const registerSchema = z.object({
-  email,
-  password,
-  name,
-});
+export const registerSchema = z
+  .object({
+    email,
+    password,
+    confirmPassword: z.string(),
+    name,
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
 
 /**
  * User login schema

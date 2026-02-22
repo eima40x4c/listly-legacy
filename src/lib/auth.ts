@@ -39,6 +39,7 @@ function customPrismaAdapter(): Adapter {
   // @auth/prisma-adapter (0.41.1) and next-auth (0.41.0)
   return {
     ...baseAdapter,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async createUser(user: any) {
       const data = {
         id: user.id,
@@ -109,7 +110,9 @@ function customPrismaAdapter(): Adapter {
         emailVerified: account.user.emailVerified ? new Date() : null,
       };
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async updateUser({ id, ...data }: { id: string; [key: string]: any }) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updateData: any = { ...data };
 
       if ('image' in updateData) {
@@ -132,6 +135,7 @@ function customPrismaAdapter(): Adapter {
         emailVerified: user.emailVerified ? new Date() : null,
       };
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as Adapter;
 }
 
@@ -141,6 +145,7 @@ function customPrismaAdapter(): Adapter {
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adapter: customPrismaAdapter() as any,
 
   providers: [
@@ -211,6 +216,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         user,
         trigger,
         session: null,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       // Database sync for updates
@@ -250,6 +256,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           await prisma.user.update({
             where: { id: user.id },
             data: {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               provider: provider as any,
               providerId: account.providerAccountId,
               emailVerified: true,

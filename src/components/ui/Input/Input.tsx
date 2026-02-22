@@ -42,7 +42,10 @@ export interface InputProps
   /** Label text */
   label?: string;
   /** Helper text to display below input */
+  /** Helper text to display below input */
   helperText?: string;
+  /** Element to display at the end of the input (e.g. icon) */
+  suffix?: React.ReactNode;
 }
 
 /**
@@ -67,6 +70,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       label,
       helperText,
       id,
+      suffix,
       ...props
     },
     ref
@@ -86,16 +90,24 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {props.required && <span className="ml-1 text-destructive">*</span>}
           </label>
         )}
-        <input
-          id={inputId}
-          type={type}
-          className={cn(
-            inputVariants({ variant: finalVariant, inputSize }),
-            className
+        <div className="relative">
+          <input
+            id={inputId}
+            type={type}
+            className={cn(
+              inputVariants({ variant: finalVariant, inputSize }),
+              suffix && 'pr-10',
+              className
+            )}
+            ref={ref}
+            {...props}
+          />
+          {suffix && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              {suffix}
+            </div>
           )}
-          ref={ref}
-          {...props}
-        />
+        </div>
         {(error || helperText) && (
           <p
             className={cn(

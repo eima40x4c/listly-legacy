@@ -8,134 +8,149 @@
 
 'use client';
 
-import {
-  ArrowDown,
-  ArrowUp,
-  BarChart3,
-  Calendar,
-  TrendingUp,
-} from 'lucide-react';
-import { useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
+import { BarChart3, Settings } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
+import { ManageCategoriesModal } from '@/components/features/categories/ManageCategoriesModal';
 import { AppShell } from '@/components/layout/AppShell';
 import { Container } from '@/components/layout/Container';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { useLists } from '@/hooks/api/useLists';
 import { cn } from '@/lib/utils';
 import { getCurrencySymbol } from '@/lib/utils/formatCurrency';
 import { useSettingsStore } from '@/stores';
 
-// --- Mock Data ---
-const DATE_RANGES = [
-  'This Week',
-  'This Month',
-  'Last Month',
-  'Custom',
-] as const;
-
-interface CategorySpend {
-  name: string;
-  emoji: string;
-  spent: number;
-  budget: number;
-  color: string;
-}
-
-interface Transaction {
-  id: string;
-  store: string;
-  date: string;
-  total: number;
-  items: number;
-}
-
-const mockSummary = {
-  totalSpent: 342.58,
-  monthlyBudget: 500,
-  avgPerTrip: 57.1,
-  tripsThisMonth: 6,
-  vsLastMonth: -12.3,
-};
-
-const mockCategories: CategorySpend[] = [
-  {
-    name: 'Produce',
-    emoji: '🥬',
-    spent: 89.5,
-    budget: 120,
-    color: 'bg-green-500',
-  },
-  {
-    name: 'Dairy',
-    emoji: '🧀',
-    spent: 52.0,
-    budget: 60,
-    color: 'bg-yellow-500',
-  },
-  { name: 'Meat', emoji: '🥩', spent: 78.2, budget: 80, color: 'bg-red-500' },
-  {
-    name: 'Pantry',
-    emoji: '🥫',
-    spent: 45.3,
-    budget: 100,
-    color: 'bg-orange-500',
-  },
-  {
-    name: 'Snacks',
-    emoji: '🍿',
-    spent: 31.5,
-    budget: 40,
-    color: 'bg-purple-500',
-  },
-  {
-    name: 'Beverages',
-    emoji: '🥤',
-    spent: 46.08,
-    budget: 50,
-    color: 'bg-blue-500',
-  },
-];
-
-const mockTransactions: Transaction[] = [
-  { id: '1', store: 'Whole Foods', date: 'Feb 10', total: 72.45, items: 12 },
-  { id: '2', store: 'Costco', date: 'Feb 8', total: 124.3, items: 18 },
-  { id: '3', store: "Trader Joe's", date: 'Feb 5', total: 58.2, items: 9 },
-  { id: '4', store: 'Target', date: 'Feb 3', total: 35.8, items: 5 },
-  { id: '5', store: 'Aldi', date: 'Feb 1', total: 51.83, items: 14 },
-];
-
-function ProgressBar({
-  value,
-  max,
-  colorClass,
-}: {
-  value: number;
-  max: number;
-  colorClass: string;
-}) {
-  const percentage = Math.min((value / max) * 100, 100);
-  const isOver = value > max;
-
-  return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-      <div
-        className={cn(
-          'h-full rounded-full transition-all duration-500',
-          isOver ? 'animate-pulse-warning bg-destructive' : colorClass
-        )}
-        style={{ width: `${percentage}%` }}
-      />
-    </div>
-  );
-}
+// --- Date Ranges ---
+const DATE_RANGES = ['This Month', 'Last Month', 'All Time'] as const;
 
 export default function BudgetPage() {
   const [dateRange, setDateRange] = useState<string>('This Month');
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const { currency } = useSettingsStore();
 
   const currencySymbol = getCurrencySymbol(currency);
-  const budgetPercentage =
-    (mockSummary.totalSpent / mockSummary.monthlyBudget) * 100;
+
+  // 1. Fetch all lists (simple filter for now, ideally backend filters by date)
+  const { data: lists } = useLists({ limit: 50 }); // Fetch last 50 lists
+
+  // 2. We need list details to get *actual price* of items
+  // This is expensive (N+1), but necessary without a stats endpoint.
+  // We'll limit to the visible lists or recent ones.
+  const relevantListIds = useMemo(() => {
+    if (!lists) return [];
+    // Filter by date range (client-side for now)
+    const now = new Date();
+    return lists
+      .filter((list) => {
+        const listDate = new Date(list.createdAt);
+        if (dateRange === 'This Month') {
+          return (
+            listDate.getMonth() === now.getMonth() &&
+            listDate.getFullYear() === now.getFullYear()
+          );
+        }
+        if (dateRange === 'Last Month') {
+          const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          return (
+            listDate.getMonth() === lastMonth.getMonth() &&
+            listDate.getFullYear() === lastMonth.getFullYear()
+          );
+        }
+        return true;
+      })
+      .map((l) => l.id);
+  }, [lists, dateRange]);
+
+  const listDetailsQueries = useQueries({
+    queries: relevantListIds.map((id) => ({
+      queryKey: ['list', 'detail', id],
+      queryFn: async () => {
+        // We can't use the hook directly in callback, so we use the fetcher logic or assuming cache
+        // Actually, we should probably just use the `useList` hook logic if possible,
+        // but `useQueries` expects a queryFn.
+        // Let's assume the useList `queryFn` is exportable or we reconstruct it.
+        // Reconstructing:
+        const endpoint = `/lists/${id}`;
+        const response = await fetch('/api/v1' + endpoint).then((r) =>
+          r.json()
+        );
+        return response.data;
+      },
+    })),
+  });
+
+  // 3. Aggregate Data
+  const stats = useMemo(() => {
+    let totalSpent = 0;
+    let totalBudget = 0;
+    const categorySpend = new Map<
+      string,
+      { name: string; spent: number; color?: string; icon?: string }
+    >();
+    let trips = 0;
+
+    listDetailsQueries.forEach((query) => {
+      const list = query.data;
+      if (!list) return;
+
+      trips++;
+      totalBudget += Number(list.budget || 0);
+
+      // Sum items
+      list.items?.forEach(
+        (item: {
+          actualPrice?: number | string;
+          estimatedPrice?: number | string;
+          quantity: number | string;
+          category?: {
+            id: string;
+            name: string;
+            color?: string;
+            icon?: string;
+          };
+        }) => {
+          const cost =
+            Number(item.actualPrice || item.estimatedPrice || 0) *
+            Number(item.quantity);
+          totalSpent += cost;
+
+          if (item.category) {
+            const catId = item.category.id;
+            const current = categorySpend.get(catId) || {
+              name: item.category.name,
+              spent: 0,
+              color: item.category.color,
+              icon: item.category.icon,
+            };
+            current.spent += cost;
+            categorySpend.set(catId, current);
+          } else {
+            const current = categorySpend.get('uncategorized') || {
+              name: 'Uncategorized',
+              spent: 0,
+            };
+            current.spent += cost;
+            categorySpend.set('uncategorized', current);
+          }
+        }
+      );
+    });
+
+    return {
+      totalSpent,
+      totalBudget,
+      trips,
+      categories: Array.from(categorySpend.values()).sort(
+        (a, b) => b.spent - a.spent
+      ),
+    };
+  }, [listDetailsQueries]);
+
+  const budgetProgress =
+    stats.totalBudget > 0 ? (stats.totalSpent / stats.totalBudget) * 100 : 0;
 
   return (
     <AppShell>
@@ -144,12 +159,20 @@ export default function BudgetPage() {
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Budget</h1>
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCategoriesModal(true)}
+            >
+              <Settings className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Categories</span>
+            </Button>
             <CustomSelect
               options={DATE_RANGES.map((r) => ({ value: r, label: r }))}
               value={dateRange}
+              // @ts-ignore
               onChange={(val) => setDateRange(val)}
-              className="w-40"
+              className="w-36"
             />
           </div>
         </div>
@@ -157,72 +180,59 @@ export default function BudgetPage() {
         {/* Spending Summary Card */}
         <Card className="mb-6 p-5">
           <div className="mb-4">
-            <p className="text-sm text-muted-foreground">Total Spent</p>
-            <div className="flex items-baseline gap-2">
+            <p className="text-sm text-muted-foreground">
+              Total Spent ({dateRange})
+            </p>
+            <div className="flex items-center gap-2">
               <span className="text-3xl font-bold">
                 {currencySymbol}
-                {mockSummary.totalSpent.toFixed(2)}
+                {stats.totalSpent.toFixed(2)}
               </span>
-              <span className="text-sm text-muted-foreground">
-                / {currencySymbol}
-                {mockSummary.monthlyBudget}
-              </span>
+              {stats.totalBudget > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  / {currencySymbol}
+                  {stats.totalBudget.toFixed(2)} budget
+                </span>
+              )}
             </div>
           </div>
 
           {/* Budget Progress */}
-          <div className="mb-3">
-            <ProgressBar
-              value={mockSummary.totalSpent}
-              max={mockSummary.monthlyBudget}
-              colorClass="bg-primary"
-            />
-            <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-              <span>{budgetPercentage.toFixed(0)}% used</span>
-              <span>
-                {currencySymbol}
-                {(mockSummary.monthlyBudget - mockSummary.totalSpent).toFixed(
-                  2
-                )}{' '}
-                remaining
-              </span>
+          {stats.totalBudget > 0 && (
+            <div className="mb-3">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all duration-500',
+                    budgetProgress > 100 ? 'bg-destructive' : 'bg-primary'
+                  )}
+                  style={{ width: `${Math.min(budgetProgress, 100)}%` }}
+                />
+              </div>
+              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+                <span>{budgetProgress.toFixed(0)}% used</span>
+                <span>
+                  {currencySymbol}
+                  {(stats.totalBudget - stats.totalSpent).toFixed(2)} remaining
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Stats Row */}
-          <div className="mt-4 grid grid-cols-3 gap-4 border-t pt-4">
+          <div className="mt-4 grid grid-cols-2 gap-4 border-t pt-4">
             <div className="text-center">
               <p className="text-lg font-semibold">
                 {currencySymbol}
-                {mockSummary.avgPerTrip.toFixed(0)}
+                {stats.trips > 0
+                  ? (stats.totalSpent / stats.trips).toFixed(0)
+                  : 0}
               </p>
-              <p className="text-xs text-muted-foreground">Avg per trip</p>
+              <p className="text-xs text-muted-foreground">Avg per list</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-semibold">
-                {mockSummary.tripsThisMonth}
-              </p>
-              <p className="text-xs text-muted-foreground">Trips</p>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1">
-                {mockSummary.vsLastMonth < 0 ? (
-                  <ArrowDown className="h-3 w-3 text-green-500" />
-                ) : (
-                  <ArrowUp className="h-3 w-3 text-red-500" />
-                )}
-                <p
-                  className={cn(
-                    'text-lg font-semibold',
-                    mockSummary.vsLastMonth < 0
-                      ? 'text-green-500'
-                      : 'text-red-500'
-                  )}
-                >
-                  {Math.abs(mockSummary.vsLastMonth)}%
-                </p>
-              </div>
-              <p className="text-xs text-muted-foreground">vs last month</p>
+              <p className="text-lg font-semibold">{stats.trips}</p>
+              <p className="text-xs text-muted-foreground">Lists Created</p>
             </div>
           </div>
         </Card>
@@ -236,58 +246,45 @@ export default function BudgetPage() {
             </h2>
           </div>
           <div className="space-y-4">
-            {mockCategories.map((cat) => (
-              <div key={cat.name}>
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <span>{cat.emoji}</span>
-                    <span className="font-medium">{cat.name}</span>
+            {stats.categories.length === 0 ? (
+              <p className="text-sm italic text-muted-foreground">
+                No spending data for this period.
+              </p>
+            ) : (
+              stats.categories.map((cat) => (
+                <div key={cat.name}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span>{cat.icon || '📦'}</span>
+                      <span className="font-medium">{cat.name}</span>
+                    </div>
+                    <span className="font-medium">
+                      {currencySymbol}
+                      {cat.spent.toFixed(2)}
+                    </span>
                   </div>
-                  <span className="text-muted-foreground">
-                    {currencySymbol}
-                    {cat.spent.toFixed(2)} / {currencySymbol}
-                    {cat.budget}
-                  </span>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className={cn(
+                        'h-full rounded-full',
+                        cat.color || 'bg-primary'
+                      )}
+                      style={{
+                        width: `${stats.totalSpent > 0 ? (cat.spent / stats.totalSpent) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
                 </div>
-                <ProgressBar
-                  value={cat.spent}
-                  max={cat.budget}
-                  colorClass={cat.color}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Transactions */}
-        <div>
-          <div className="mb-4 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Recent Trips
-            </h2>
-          </div>
-          <div className="space-y-2">
-            {mockTransactions.map((tx) => (
-              <Card
-                key={tx.id}
-                className="flex items-center justify-between p-3 transition-colors hover:bg-muted/50"
-              >
-                <div>
-                  <p className="font-medium">{tx.store}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {tx.date} · {tx.items} items
-                  </p>
-                </div>
-                <span className="font-semibold">
-                  {currencySymbol}
-                  {tx.total.toFixed(2)}
-                </span>
-              </Card>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </Container>
+
+      <ManageCategoriesModal
+        isOpen={showCategoriesModal}
+        onClose={() => setShowCategoriesModal(false)}
+      />
     </AppShell>
   );
 }

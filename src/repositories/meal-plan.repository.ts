@@ -7,7 +7,7 @@
  * @module repositories/meal-plan.repository
  */
 
-import type { MealPlan, Prisma, PrismaClient } from '@prisma/client';
+import type { MealPlan, MealType, Prisma, PrismaClient } from '@prisma/client';
 
 import { BaseRepository } from './base.repository';
 import type {
@@ -116,7 +116,7 @@ export class MealPlanRepository
 
     if (mealType) {
       // Need to cast string to MealType enum if strict
-      where.mealType = mealType as any;
+      where.mealType = mealType as MealType;
     }
 
     if (isCompleted !== undefined) where.isCompleted = isCompleted;
@@ -156,7 +156,7 @@ export class MealPlanRepository
       where.date = { lte: endDate };
     }
 
-    if (mealType) where.mealType = mealType as any;
+    if (mealType) where.mealType = mealType as MealType;
     if (isCompleted !== undefined) where.isCompleted = isCompleted;
 
     return (this.db as PrismaClient).mealPlan.count({ where });
@@ -185,7 +185,7 @@ export class MealPlanRepository
     return (this.db as PrismaClient).mealPlan.findMany({
       where: {
         userId,
-        mealType: mealType as any,
+        mealType: mealType as MealType,
         isCompleted: false, // Maybe we allow planning multiple if one is done?
         date: {
           gte: startOfDay,

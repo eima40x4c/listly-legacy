@@ -29,10 +29,10 @@ interface AppState {
 
   // Actions
   toggleSidebar: () => void;
-  setSidebarCollapsed: (collapsed: boolean) => void;
-  setMobileMenuOpen: (open: boolean) => void;
-  setActiveNav: (nav: NavItem) => void;
-  setMounted: (mounted: boolean) => void;
+  setSidebarCollapsed: (_collapsed: boolean) => void;
+  setMobileMenuOpen: (_open: boolean) => void;
+  setActiveNav: (_nav: NavItem) => void;
+  setMounted: (_mounted: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({

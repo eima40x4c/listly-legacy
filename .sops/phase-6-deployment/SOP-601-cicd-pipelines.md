@@ -1,645 +1,146 @@
+---
+sop: "SOP-601"
+title: "CI/CD Pipelines"
+phase: 6
+iterative: false
+prerequisites:
+  - sop: "SOP-500"
+  - sop: "SOP-501"
+  - sop: "SOP-600"
+outputs:
+  - ".github/workflows/ci.yml"
+  - ".github/workflows/deploy.yml"
+  - ".github/workflows/preview.yml"
+  - ".github/workflows/migrate.yml"
+related: ["SOP-500", "SOP-501", "SOP-600", "SOP-602"]
+---
+
 # SOP-601: CI/CD Pipelines
 
 ## Purpose
 
-Establish continuous integration and continuous deployment pipelines to automate testing, building, and deploying the application. Good CI/CD ensures consistent quality and enables rapid, reliable releases.
-
----
+Automate testing, building, and deploying the application via GitHub Actions.
 
 ## Scope
 
-- **Applies to:** All code deployments
-- **Covers:** GitHub Actions setup, build pipelines, deployment automation
-- **Does not cover:** Infrastructure provisioning, Kubernetes configuration
-
----
+- **Covers:** CI workflow, preview deployments, production deployment, DB migrations, Docker builds, release notes
+- **Excludes:** Infrastructure provisioning, Kubernetes
 
 ## Prerequisites
 
-- [ ] SOP-500/501 (Testing) — tests configured
-- [ ] SOP-600 (Environment Config) — environments defined
-- [ ] Repository hosted on GitHub
+- [ ] SOP-500/501 testing configured
+- [ ] SOP-600 environments defined
+- [ ] Repository on GitHub
 - [ ] Deployment target selected (Vercel, Railway, etc.)
 
----
+## Pipeline Overview
+
+`Push → Lint + Type Check → Unit Tests → Integration Tests (with Postgres DB) → Build → Deploy`
+
+All jobs run in parallel where possible. Build is gated on lint + unit tests passing.
 
 ## Procedure
 
-### 1. CI/CD Overview
+### 1. Main CI Workflow (`.github/workflows/ci.yml`)
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                     CI/CD Pipeline                               │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐       │
-│  │  Push   │───▶│  Test   │───▶│  Build  │───▶│ Deploy  │       │
-│  └─────────┘    └─────────┘    └─────────┘    └─────────┘       │
-│       │              │              │              │             │
-│       ▼              ▼              ▼              ▼             │
-│  ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐       │
-│  │  Lint   │    │  Unit   │    │ Docker  │    │ Preview │       │
-│  │ Format  │    │  Integ  │    │  Image  │    │  Prod   │       │
-│  └─────────┘    └─────────┘    └─────────┘    └─────────┘       │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
+Triggers: `push` to `main`/`develop`, PRs to `main`/`develop`. Set `concurrency` with `cancel-in-progress: true` to drop stale runs.
 
-### 2. Create GitHub Actions Workflow
+**Jobs (all run `ubuntu-latest`):**
 
-```yaml
-# .github/workflows/ci.yml
+| Job                | Steps                                                                                                                                  | Needs               |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `lint`             | checkout, setup pnpm+node (cache), install, `pnpm lint`, `pnpm type-check`                                                             | —                   |
+| `test-unit`        | checkout, setup, install, `pnpm test:run`, upload coverage to Codecov                                                                  | —                   |
+| `test-integration` | `services: postgres:15` (with health check), checkout, setup, install, `pnpm prisma db push`, `pnpm test:integration` with DB env vars | —                   |
+| `build`            | checkout, setup, install, `pnpm build` (with dummy env vars), upload `.next/` artifact                                                 | `lint`, `test-unit` |
 
-name: CI
+### 2. Production Deployment (`.github/workflows/deploy.yml`)
 
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+Triggers: `push` to `main`, `workflow_dispatch`.
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+**For Vercel:**
 
-env:
-  NODE_VERSION: '20'
-  PNPM_VERSION: '8'
+- Use `amondnet/vercel-action@v25` with `vercel-args: '--prod'`
+- Required secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
+- Post-deploy step: `npx prisma migrate deploy` with `DATABASE_URL` secret
 
-jobs:
-  # ===================
-  # Lint & Type Check
-  # ===================
-  lint:
-    name: Lint & Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+### 3. Preview Deployments (`.github/workflows/preview.yml`)
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: ${{ env.PNPM_VERSION }}
+Triggers: `pull_request` types `[opened, synchronize, reopened]`.
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+- Deploy to Vercel without `--prod` flag → gets unique preview URL
+- Comment preview URL on PR using `actions/github-script@v7`
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+### 4. Database Migration Workflow (`.github/workflows/migrate.yml`)
 
-      - name: Lint
-        run: pnpm lint
+Trigger: `workflow_dispatch` with `environment` input (`staging` or `production`).
 
-      - name: Type check
-        run: pnpm type-check
+- Run `pnpm prisma migrate deploy` with `DATABASE_URL` from environment secret
+- Log success/failure
 
-  # ===================
-  # Unit Tests
-  # ===================
-  test-unit:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+### 5. Docker Build (`.github/workflows/docker.yml`) — _optional_
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: ${{ env.PNPM_VERSION }}
+Triggers: push to `main`, `v*` tags.
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+Multi-stage Dockerfile:
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+1. **base**: `node:20-alpine`, enable pnpm via `corepack`
+2. **deps**: copy `package.json` + lockfile, `pnpm install --frozen-lockfile`
+3. **builder**: copy `node_modules`, copy source, `pnpm prisma generate`, `pnpm build`
+4. **runner**: `NODE_ENV=production`, non-root `nextjs` user, copy `.next/standalone` + `.next/static` + `public`, expose 3000, `CMD ["node", "server.js"]`
 
-      - name: Run unit tests
-        run: pnpm test:run
+Push to GitHub Container Registry (`ghcr.io`) with build cache (`type=gha`).
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
+### 6. Scheduled Jobs (`.github/workflows/scheduled.yml`)
 
-  # ===================
-  # Integration Tests
-  # ===================
-  test-integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+- **Daily at 3 AM UTC:** DB backup (call backup script)
+- **Weekly:** `npx npm-check-updates -u --target minor` — report if updates exist
+- **On schedule:** `pnpm audit --audit-level=moderate` — security scan
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+### 7. Release Workflow (`.github/workflows/release.yml`)
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: ${{ env.PNPM_VERSION }}
+Trigger: push `v*` tags. Use `orhun/git-cliff-action` for changelog, then `softprops/action-gh-release` to create GitHub release. Mark as pre-release if tag contains `alpha` or `beta`.
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+### 8. Branch Protection (configure in GitHub UI)
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+For `main`: require status checks (`lint`, `test-unit`, `build`), require 1 approving review, dismiss stale reviews, linear history.
 
-      - name: Run migrations
-        run: pnpm prisma db push
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+## Pipeline Optimization
 
-      - name: Run integration tests
-        run: pnpm test:integration
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
-          NEXTAUTH_SECRET: test-secret-for-ci
-
-  # ===================
-  # Build
-  # ===================
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: [lint, test-unit]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm build
-        env:
-          # Provide dummy values for build
-          DATABASE_URL: postgresql://localhost:5432/dummy
-          NEXTAUTH_SECRET: build-time-secret
-          NEXT_PUBLIC_APP_URL: https://example.com
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build
-          path: .next/
-          retention-days: 7
-```
-
-### 3. Deployment Workflow (Vercel)
-
-```yaml
-# .github/workflows/deploy.yml
-
-name: Deploy
-
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-jobs:
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    environment: production
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
-
-      - name: Run post-deploy migrations
-        run: |
-          npx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-```
-
-### 4. Preview Deployments
-
-```yaml
-# .github/workflows/preview.yml
-
-name: Preview
-
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-jobs:
-  deploy-preview:
-    name: Deploy Preview
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy Preview to Vercel
-        uses: amondnet/vercel-action@v25
-        id: vercel-deploy
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Comment Preview URL
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `🚀 Preview deployed to: ${{ steps.vercel-deploy.outputs.preview-url }}`
-            })
-```
-
-### 5. Database Migrations in CI
-
-```yaml
-# .github/workflows/migrate.yml
-
-name: Database Migration
-
-on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to migrate'
-        required: true
-        type: choice
-        options:
-          - staging
-          - production
-
-jobs:
-  migrate:
-    name: Run Migrations
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: '8'
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run migrations
-        run: pnpm prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-      - name: Notify success
-        if: success()
-        run: echo "✅ Migrations completed successfully"
-
-      - name: Notify failure
-        if: failure()
-        run: echo "❌ Migration failed"
-```
-
-### 6. Docker Build Pipeline
-
-```yaml
-# .github/workflows/docker.yml
-
-name: Docker Build
-
-on:
-  push:
-    branches: [main]
-    tags: ['v*']
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
-jobs:
-  build-and-push:
-    name: Build and Push Docker Image
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=sha,prefix=
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-```
-
-### 7. Multi-Stage Dockerfile
-
-```dockerfile
-# Dockerfile
-
-# ===================
-# Base Stage
-# ===================
-FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@8 --activate
-WORKDIR /app
-
-# ===================
-# Dependencies Stage
-# ===================
-FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-
-# ===================
-# Build Stage
-# ===================
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Generate Prisma client
-RUN pnpm prisma generate
-
-# Build application
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN pnpm build
-
-# ===================
-# Production Stage
-# ===================
-FROM base AS runner
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-USER nextjs
-
-# Copy built assets
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["node", "server.js"]
-```
-
-### 8. Release Workflow
-
-```yaml
-# .github/workflows/release.yml
-
-name: Release
-
-on:
-  push:
-    tags: ['v*']
-
-jobs:
-  release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Generate changelog
-        id: changelog
-        uses: orhun/git-cliff-action@v3
-        with:
-          config: cliff.toml
-          args: --latest --strip header
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          body: ${{ steps.changelog.outputs.content }}
-          draft: false
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
-```
-
-### 9. Scheduled Jobs
-
-```yaml
-# .github/workflows/scheduled.yml
-
-name: Scheduled Jobs
-
-on:
-  schedule:
-    # Daily at 3 AM UTC
-    - cron: '0 3 * * *'
-  workflow_dispatch:
-
-jobs:
-  # Database backup
-  backup:
-    name: Database Backup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Backup database
-        run: |
-          # Add your backup script here
-          echo "Running database backup..."
-
-  # Dependency updates check
-  dependencies:
-    name: Check Dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check for updates
-        run: |
-          npx npm-check-updates -u --target minor
-          git diff --exit-code || echo "Updates available"
-
-  # Security scan
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run security audit
-        run: pnpm audit --audit-level=moderate
-```
-
-### 10. Branch Protection Rules
-
-Configure in GitHub repository settings:
-
-```yaml
-# Documented for reference (configure in UI)
-
-branches:
-  main:
-    protection:
-      required_status_checks:
-        strict: true
-        contexts:
-          - lint
-          - test-unit
-          - build
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-        dismiss_stale_reviews: true
-      enforce_admins: false
-      required_linear_history: true
-```
-
----
+| Technique                        | Benefit              |
+| -------------------------------- | -------------------- |
+| Parallel jobs                    | Faster total time    |
+| pnpm cache                       | Faster installs      |
+| Concurrency + cancel-in-progress | Drop stale runs      |
+| Build artifacts                  | Reuse across jobs    |
+| Conditional jobs                 | Skip when not needed |
 
 ## Review Checklist
 
-- [ ] CI workflow runs on PRs
-- [ ] Unit tests run in CI
-- [ ] Integration tests with DB service
-- [ ] Build verification
-- [ ] Preview deployments for PRs
-- [ ] Production deployment workflow
-- [ ] Database migration strategy
-- [ ] Docker build (if applicable)
-- [ ] Branch protection configured
-- [ ] Secrets stored securely
+- [ ] CI runs lint, tests, build on every PR
+- [ ] Integration tests use local Postgres service
+- [ ] Coverage uploaded to Codecov
+- [ ] Preview deployments comment on PRs
+- [ ] Production deploys from `main` only
+- [ ] DB migrations run post-deploy
+- [ ] Secrets stored in GitHub Secrets (not hardcoded)
+- [ ] Branch protection rules configured
 
----
+## AI Agent Prompt
 
-## AI Agent Prompt Template
-
-```
-Set up CI/CD pipelines for this project.
-
-Read:
-- `package.json` for scripts
-- `.github/` for existing workflows
-- Deployment target requirements
-
-Execute SOP-601 (CI/CD Pipelines):
-1. Create CI workflow with lint, test, build
-2. Set up preview deployments
-3. Create production deployment workflow
-4. Add database migration workflow
-5. Configure branch protection
-```
-
----
+→ Use **Pattern 1** from `.prompts/AI-GUIDE.md`. Read `package.json` for script names and `.github/` for any existing workflows. Create CI and deploy workflows matching the test scripts.
 
 ## Outputs
 
-- [ ] `.github/workflows/ci.yml` — Main CI pipeline
-- [ ] `.github/workflows/deploy.yml` — Production deployment
-- [ ] `.github/workflows/preview.yml` — Preview deployments
-- [ ] `.github/workflows/migrate.yml` — Database migrations
-- [ ] `Dockerfile` — Container build (if needed)
-- [ ] Branch protection configured
-
----
+- [ ] `.github/workflows/ci.yml`
+- [ ] `.github/workflows/deploy.yml`
+- [ ] `.github/workflows/preview.yml`
+- [ ] `.github/workflows/migrate.yml`
+- [ ] `.github/workflows/scheduled.yml`
+- [ ] `Dockerfile` (if using Docker)
 
 ## Related SOPs
 
-- **SOP-500/501:** Testing (test configuration)
-- **SOP-600:** Environment Config (secrets)
-- **SOP-602:** Monitoring (deployment verification)
-
----
-
-## Pipeline Performance Tips
-
-| Optimization       | Impact                |
-| ------------------ | --------------------- |
-| Parallel jobs      | Faster total time     |
-| Dependency caching | Faster installs       |
-| Artifact reuse     | Avoid rebuilding      |
-| Conditional runs   | Skip unnecessary jobs |
-| Concurrency limits | Cancel stale runs     |
+- **SOP-500/501:** Testing
+- **SOP-600:** Environment Config
+- **SOP-602:** Monitoring

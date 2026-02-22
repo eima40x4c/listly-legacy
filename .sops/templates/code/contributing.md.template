@@ -1,0 +1,74 @@
+&lt;!-- CONTRIBUTING Template — SOP-002 -->
+&lt;!-- Replace all placeholders marked with {PLACEHOLDER} -->
+
+# Contributing to {PROJECT_NAME}
+
+Thank you for contributing! This guide explains how to get started.
+
+## Getting Started
+
+1. Fork the repository
+2. Clone your fork: `git clone {your-fork-url}`
+3. Create a branch: `git checkout -b feature/your-feature`
+4. Make changes and write tests
+5. Commit using conventional commits (see below)
+6. Push and open a Pull Request
+
+## Development Setup
+
+See [README.md](README.md#-getting-started) for full setup instructions.
+
+## Code Style
+
+- Follow the project ESLint and Prettier configuration
+- Run `pnpm lint` before committing
+- Pre-commit hooks enforce formatting automatically
+
+## Commit Message Format
+
+We use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+&lt;type>(&lt;scope>): &lt;description>
+
+[optional body]
+[optional footer]
+```
+
+### Types
+
+| Type | Description |
+|---|---|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `style` | Formatting (no logic change) |
+| `refactor` | Code restructuring |
+| `test` | Adding/updating tests |
+| `chore` | Build, config, tooling |
+
+### Examples
+
+```
+feat(auth): add Google OAuth login
+fix(api): handle null response from payment provider
+docs: update API endpoint table in README
+```
+
+## Pull Request Process
+
+1. Update documentation if needed
+2. Ensure all tests pass (`pnpm test`)
+3. Ensure lint passes (`pnpm lint`)
+4. Request review from at least one team member
+5. Squash and merge after approval
+
+## Reporting Issues
+
+- Use GitHub Issues
+- Include: steps to reproduce, expected behavior, actual behavior, screenshots if UI-related
+- Label appropriately (bug, enhancement, question)
+
+## Code of Conduct
+
+Be respectful, inclusive, and constructive. See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) if available.

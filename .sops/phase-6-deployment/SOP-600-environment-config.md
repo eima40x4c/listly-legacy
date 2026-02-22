@@ -1,501 +1,96 @@
+---
+sop: "SOP-600"
+title: "Environment Configuration"
+phase: 6
+iterative: false
+prerequisites:
+  - sop: "SOP-004"
+outputs:
+  - ".env.example"
+  - "src/lib/env.ts"
+  - "src/config/index.ts"
+  - "src/app/api/health/route.ts"
+related: ["SOP-004", "SOP-601", "SOP-602"]
+---
+
 # SOP-600: Environment Configuration
 
 ## Purpose
 
-Establish standards for managing environment-specific configurations across development, staging, and production environments. Proper configuration management prevents security issues and ensures consistent deployments.
-
----
+Standardize environment variable management, validation, and secrets handling across dev/staging/production.
 
 ## Scope
 
-- **Applies to:** All environment-dependent settings
-- **Covers:** Environment variables, secrets management, configuration validation
-- **Does not cover:** CI/CD pipelines (SOP-601), infrastructure provisioning
-
----
+- **Covers:** Env file structure, Zod validation, secrets management, config by environment, health check
+- **Excludes:** CI/CD pipelines (SOP-601), infrastructure provisioning
 
 ## Prerequisites
 
-- [ ] SOP-004 (Environment Setup) — local development configured
+- [ ] SOP-004 (Environment Setup) — local dev configured
 - [ ] Deployment targets identified
-- [ ] Secret management solution selected
-
----
+- [ ] Secrets manager selected (Vercel / GitHub Actions / AWS)
 
 ## Procedure
 
-### 1. Environment Structure
+### 1. Environment File Structure
 
 ```
-Environments:
-├── development    # Local development (developers' machines)
-├── preview        # Per-PR deployments (optional)
-├── staging        # Pre-production testing
-└── production     # Live environment
+.env                # Defaults (committed, no secrets)
+.env.local          # Local overrides (gitignored)
+.env.development    # Dev defaults (committed)
+.env.production     # Production non-secrets (committed)
+.env.example        # All variables documented (committed)
 ```
 
-### 2. Environment Variable Categories
+### 2. Create Comprehensive `.env.example`
 
-| Category          | Example                | Sensitivity | Source          |
-| ----------------- | ---------------------- | ----------- | --------------- |
-| **Public**        | `NEXT_PUBLIC_APP_NAME` | None        | Git             |
-| **Build-time**    | `NODE_ENV`             | None        | CI/CD           |
-| **Runtime**       | `DATABASE_URL`         | High        | Secrets manager |
-| **Feature flags** | `ENABLE_NEW_FEATURE`   | Low         | Config service  |
+Group by category with inline comments:
 
-### 3. Environment Files Structure
+- **App**: `NODE_ENV`, `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_APP_URL`
+- **Database**: `DATABASE_URL` with format comment (`postgresql://USER:PASS@HOST:PORT/DB`)
+- **Auth**: `NEXTAUTH_SECRET` (note: generate with `openssl rand -base64 32`), `NEXTAUTH_URL`
+- **OAuth**: `GITHUB_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET` (optional)
+- **External Services**: `RESEND_API_KEY`, `OPENAI_API_KEY`, `SENTRY_DSN`, S3 vars (all empty by default)
+- **Feature Flags**: `ENABLE_ANALYTICS=false`, `ENABLE_AI_FEATURES=false`
 
-```
-.env                    # Defaults (committed, no secrets)
-.env.local              # Local overrides (gitignored)
-.env.development        # Development defaults (committed)
-.env.production         # Production defaults (committed, no secrets)
-.env.example            # Template with all variables (committed)
-```
+### 3. Validate Environment Variables (`src/lib/env.ts`)
 
-### 4. Create Comprehensive .env.example
+Use Zod to validate all variables at startup:
 
-```bash
-# .env.example
-# Copy to .env.local and fill in values
+- Required: `DATABASE_URL`, `NEXTAUTH_SECRET` (`.min(32)`), `NEXTAUTH_URL` (`.url()`), `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_APP_URL` (`.url()`)
+- Optional: OAuth, external service keys (`.optional()`)
+- Booleans: `.string().transform(v => v === 'true').default('false')`
+- If validation fails: log `parsed.error.flatten().fieldErrors` and throw
 
-# ===================
-# App Configuration
-# ===================
-NODE_ENV=development
-NEXT_PUBLIC_APP_NAME="My App"
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+Export `env` singleton. Create `src/lib/env.client.ts` for `NEXT_PUBLIC_` vars only.
 
-# ===================
-# Database
-# ===================
-# PostgreSQL connection string
-# Format: postgresql://USER:PASSWORD@HOST:PORT/DATABASE
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/myapp_dev
+### 4. Create Environment-Specific Config (`src/config/index.ts`)
 
-# ===================
-# Authentication
-# ===================
-# Generate with: openssl rand -base64 32
-NEXTAUTH_SECRET=your-secret-here
-NEXTAUTH_URL=http://localhost:3000
+`AppConfig` interface for: `app` (name, url, isProduction), `features` (analytics, aiFeatures), `limits` (maxUploadSize, aiDailyLimit). Export `config` selecting `productionConfig` (strict limits, real features) or `developmentConfig` (relaxed limits, all features on) based on `NODE_ENV`.
 
-# OAuth Providers (optional)
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
+### 5. Prisma Client with Env Validation (`src/lib/db.ts`)
 
-# ===================
-# External Services
-# ===================
-# Email (Resend)
-RESEND_API_KEY=
+Add `log: ['error']` in production (add `'query'/'warn'` in dev). Use `globalThis` trick to prevent hot-reload from creating multiple Prisma client instances in development.
 
-# AI (OpenAI)
-OPENAI_API_KEY=
-AI_DAILY_LIMIT=50
-AI_MONTHLY_LIMIT=1000
+### 6. Environment-Specific Behavior
 
-# Storage (AWS S3 or compatible)
-S3_BUCKET=
-S3_REGION=
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-
-# Monitoring
-SENTRY_DSN=
-
-# ===================
-# Feature Flags
-# ===================
-ENABLE_ANALYTICS=false
-ENABLE_AI_FEATURES=false
-```
-
-### 5. Environment Validation with Zod
-
-```typescript
-// src/lib/env.ts
-
-import { z } from 'zod';
-
-const envSchema = z.object({
-  // App
-  NODE_ENV: z
-    .enum(['development', 'test', 'production'])
-    .default('development'),
-  NEXT_PUBLIC_APP_NAME: z.string().min(1),
-  NEXT_PUBLIC_APP_URL: z.string().url(),
-
-  // Database
-  DATABASE_URL: z.string().min(1),
-
-  // Auth
-  NEXTAUTH_SECRET: z.string().min(32),
-  NEXTAUTH_URL: z.string().url(),
-
-  // Optional OAuth
-  GITHUB_CLIENT_ID: z.string().optional(),
-  GITHUB_CLIENT_SECRET: z.string().optional(),
-
-  // Optional services
-  OPENAI_API_KEY: z.string().optional(),
-  RESEND_API_KEY: z.string().optional(),
-  SENTRY_DSN: z.string().optional(),
-
-  // Feature flags
-  ENABLE_AI_FEATURES: z
-    .string()
-    .transform((v) => v === 'true')
-    .default('false'),
-});
-
-export type Env = z.infer<typeof envSchema>;
-
-function validateEnv(): Env {
-  const parsed = envSchema.safeParse(process.env);
-
-  if (!parsed.success) {
-    console.error('❌ Invalid environment variables:');
-    console.error(parsed.error.flatten().fieldErrors);
-    throw new Error('Invalid environment variables');
-  }
-
-  return parsed.data;
-}
-
-export const env = validateEnv();
-```
-
-### 6. Client-Side Environment
-
-```typescript
-// src/lib/env.client.ts
-
-// Only expose NEXT_PUBLIC_ variables to client
-const clientEnvSchema = z.object({
-  NEXT_PUBLIC_APP_NAME: z.string(),
-  NEXT_PUBLIC_APP_URL: z.string().url(),
-});
-
-export const clientEnv = clientEnvSchema.parse({
-  NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
-  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-});
-```
+In email or external service calls: check `NODE_ENV`. In `'development'` → log to console instead of sending real requests. In `'production'` → use real service. Gate expensive operations on `env.NODE_ENV`.
 
 ### 7. Secrets Management
 
-#### Vercel (Recommended for Next.js)
+**Vercel (recommended):** `vercel env add KEY production` → `vercel env pull .env.local`.
 
-```bash
-# Install Vercel CLI
-pnpm add -g vercel
+**GitHub Actions:** Store in repository Settings → Secrets → Actions. Reference as `${{ secrets.KEY }}` in workflows.
 
-# Link project
-vercel link
+**AWS SSM (advanced):** Use `@aws-sdk/client-ssm` `GetParametersCommand` with `WithDecryption: true`.
 
-# Add secrets
-vercel env add DATABASE_URL production
-vercel env add NEXTAUTH_SECRET production
+### 8. Create Health Check (`src/app/api/health/route.ts`)
 
-# Pull secrets to local
-vercel env pull .env.local
-```
+Return: `{ status: 'healthy'|'unhealthy', checks: { database: bool }, latency: { database: ms }, version, timestamp }`. Run `prisma.$queryRaw\`SELECT 1\``with try/catch; if DB fails, mark`status: 'unhealthy'`, return 503, otherwise 200.
 
-#### GitHub Actions Secrets
+### 9. Document Environments (`docs/environments.md`)
 
-Store in repository Settings → Secrets → Actions:
-
-```yaml
-# .github/workflows/deploy.yml
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-```
-
-#### AWS Parameter Store
-
-```typescript
-// scripts/load-secrets.ts
-
-import { SSMClient, GetParametersCommand } from '@aws-sdk/client-ssm';
-
-const client = new SSMClient({ region: 'us-east-1' });
-
-async function loadSecrets(
-  environment: string
-): Promise<Record<string, string>> {
-  const parameterNames = [
-    `/myapp/${environment}/database-url`,
-    `/myapp/${environment}/nextauth-secret`,
-  ];
-
-  const command = new GetParametersCommand({
-    Names: parameterNames,
-    WithDecryption: true,
-  });
-
-  const response = await client.send(command);
-
-  const secrets: Record<string, string> = {};
-  for (const param of response.Parameters || []) {
-    const key = param.Name!.split('/').pop()!.toUpperCase().replace(/-/g, '_');
-    secrets[key] = param.Value!;
-  }
-
-  return secrets;
-}
-```
-
-### 8. Configuration by Environment
-
-```typescript
-// src/config/index.ts
-
-import { env } from '@/lib/env';
-
-interface AppConfig {
-  app: {
-    name: string;
-    url: string;
-    isProduction: boolean;
-  };
-  features: {
-    analytics: boolean;
-    aiFeatures: boolean;
-  };
-  limits: {
-    maxUploadSize: number;
-    aiDailyLimit: number;
-  };
-}
-
-const baseConfig = {
-  app: {
-    name: env.NEXT_PUBLIC_APP_NAME,
-    url: env.NEXT_PUBLIC_APP_URL,
-    isProduction: env.NODE_ENV === 'production',
-  },
-};
-
-const developmentConfig: AppConfig = {
-  ...baseConfig,
-  features: {
-    analytics: false,
-    aiFeatures: true,
-  },
-  limits: {
-    maxUploadSize: 50 * 1024 * 1024, // 50MB
-    aiDailyLimit: 1000,
-  },
-};
-
-const productionConfig: AppConfig = {
-  ...baseConfig,
-  features: {
-    analytics: true,
-    aiFeatures: env.ENABLE_AI_FEATURES,
-  },
-  limits: {
-    maxUploadSize: 10 * 1024 * 1024, // 10MB
-    aiDailyLimit: 100,
-  },
-};
-
-export const config: AppConfig =
-  env.NODE_ENV === 'production' ? productionConfig : developmentConfig;
-```
-
-### 9. Database URL by Environment
-
-```typescript
-// src/lib/db.ts
-
-import { PrismaClient } from '@prisma/client';
-import { env } from '@/lib/env';
-
-const createPrismaClient = () => {
-  return new PrismaClient({
-    log:
-      env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-    datasources: {
-      db: {
-        url: env.DATABASE_URL,
-      },
-    },
-  });
-};
-
-// Prevent multiple instances in development
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
-
-if (env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
-```
-
-### 10. Environment-Specific Behavior
-
-```typescript
-// src/lib/email.ts
-
-import { env } from '@/lib/env';
-
-export async function sendEmail(options: EmailOptions): Promise<void> {
-  // In development, log instead of sending
-  if (env.NODE_ENV === 'development') {
-    console.log('📧 Email (dev mode):', {
-      to: options.to,
-      subject: options.subject,
-    });
-    return;
-  }
-
-  // In production, use real email service
-  await resend.emails.send({
-    from: 'noreply@example.com',
-    to: options.to,
-    subject: options.subject,
-    html: options.html,
-  });
-}
-```
-
-### 11. Health Check Endpoint
-
-```typescript
-// src/app/api/health/route.ts
-
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { env } from '@/lib/env';
-
-export async function GET() {
-  const checks: Record<string, boolean> = {
-    app: true,
-    database: false,
-    redis: false,
-  };
-
-  // Check database
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    checks.database = true;
-  } catch {
-    checks.database = false;
-  }
-
-  // Check Redis if configured
-  // ...
-
-  const healthy = Object.values(checks).every(Boolean);
-
-  return NextResponse.json(
-    {
-      status: healthy ? 'healthy' : 'unhealthy',
-      environment: env.NODE_ENV,
-      checks,
-      timestamp: new Date().toISOString(),
-    },
-    { status: healthy ? 200 : 503 }
-  );
-}
-```
-
-### 12. Environment Comparison Matrix
-
-Create `docs/environments.md`:
-
-```markdown
-# Environment Configuration
-
-## Overview
-
-| Environment | URL                 | Database         | Features      |
-| ----------- | ------------------- | ---------------- | ------------- |
-| Development | localhost:3000      | Local PostgreSQL | All enabled   |
-| Staging     | staging.example.com | Staging DB       | All enabled   |
-| Production  | example.com         | Production DB    | Feature flags |
-
-## Environment Variables by Environment
-
-| Variable           | Development | Staging    | Production |
-| ------------------ | ----------- | ---------- | ---------- |
-| `NODE_ENV`         | development | production | production |
-| `DATABASE_URL`     | localhost   | staging-db | prod-db    |
-| `ENABLE_ANALYTICS` | false       | true       | true       |
-| `LOG_LEVEL`        | debug       | info       | warn       |
-
-## Secret Rotation Schedule
-
-| Secret            | Rotation  | Last Rotated |
-| ----------------- | --------- | ------------ |
-| `NEXTAUTH_SECRET` | Yearly    | 2024-01-01   |
-| `DATABASE_URL`    | On breach | N/A          |
-| `API_KEYS`        | Quarterly | 2024-03-01   |
-```
-
----
-
-## Review Checklist
-
-- [ ] All environments defined
-- [ ] .env.example complete and documented
-- [ ] Environment validation with Zod
-- [ ] Secrets stored securely (not in Git)
-- [ ] Client-safe variables separated
-- [ ] Configuration by environment
-- [ ] Health check endpoint
-- [ ] Environment documentation complete
-
----
-
-## AI Agent Prompt Template
-
-```
-Set up environment configuration for this project.
-
-Read:
-- `package.json` for dependencies
-- Existing `.env*` files
-
-Execute SOP-600 (Environment Configuration):
-1. Create comprehensive .env.example
-2. Set up Zod validation for env vars
-3. Create configuration by environment
-4. Set up health check endpoint
-5. Document environment differences
-```
-
----
-
-## Outputs
-
-- [ ] `.env.example` — Complete template
-- [ ] `src/lib/env.ts` — Environment validation
-- [ ] `src/lib/env.client.ts` — Client environment
-- [ ] `src/config/index.ts` — Environment-specific config
-- [ ] `src/app/api/health/route.ts` — Health check
-- [ ] `docs/environments.md` — Environment documentation
-
----
-
-## Related SOPs
-
-- **SOP-004:** Environment Setup (local development)
-- **SOP-601:** CI/CD Pipelines (deployment automation)
-- **SOP-602:** Monitoring (health checks)
-
----
+Matrix table: env / URL / database / features for dev, staging, production. Variable comparison table across envs. Secret rotation schedule (what rotates and when).
 
 ## Security Best Practices
 
@@ -505,4 +100,32 @@ Execute SOP-600 (Environment Configuration):
 | Validate all env vars at startup | Assume vars exist         |
 | Use different secrets per env    | Share secrets across envs |
 | Rotate secrets regularly         | Keep secrets forever      |
-| Audit secret access              | Ignore access logs        |
+
+## Review Checklist
+
+- [ ] `.env.example` complete with all variables and comments
+- [ ] Zod validation at startup in `src/lib/env.ts`
+- [ ] Secrets NOT committed to Git
+- [ ] Client-safe vars isolated in `env.client.ts`
+- [ ] Config object per environment
+- [ ] Health check endpoint working
+- [ ] Environment documentation created
+
+## AI Agent Prompt
+
+→ Use **Pattern 1** from `.prompts/AI-GUIDE.md`. Read existing `.env*` files and `package.json`. Create validation and config infrastructure, then update existing service files to use `env`.
+
+## Outputs
+
+- [ ] `.env.example` (updated)
+- [ ] `src/lib/env.ts`
+- [ ] `src/lib/env.client.ts`
+- [ ] `src/config/index.ts`
+- [ ] `src/app/api/health/route.ts`
+- [ ] `docs/environments.md`
+
+## Related SOPs
+
+- **SOP-004:** Environment Setup
+- **SOP-601:** CI/CD Pipelines
+- **SOP-602:** Monitoring
