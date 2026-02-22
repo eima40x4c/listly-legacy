@@ -115,7 +115,7 @@ export interface ICollaborationService extends IBaseService {
   /**
    * Get all lists shared with a user
    */
-  getSharedLists(userId: string): Promise<any[]>;
+  getSharedLists(userId: string): Promise<unknown[]>;
 
   /**
    * Check if user has specific permission on list
@@ -142,7 +142,7 @@ export interface ICollaborationService extends IBaseService {
     listId: string,
     userId: string,
     action: string,
-    details: any
+    details: unknown
   ): Promise<void>;
 
   /**

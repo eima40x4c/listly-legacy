@@ -40,7 +40,7 @@ export async function GET(_req: NextRequest) {
     // A simple workaround: Try to find a recent ListItem with this name to get the category.
 
     // Let's get unique item names
-    const itemNames = historyItems.map((i: any) => i.itemName);
+    const itemNames = historyItems.map((i: { itemName: string }) => i.itemName);
 
     // Find latest list items with these names to get categories
     const latestListItems = await prisma.listItem.findMany({
@@ -57,15 +57,24 @@ export async function GET(_req: NextRequest) {
     });
 
     const categoryMap = new Map(
-      latestListItems.map((i: any) => [i.name, i.category])
+      latestListItems.map((i: { name: string; category: unknown }) => [
+        i.name,
+        i.category,
+      ])
     );
 
-    const historyCallback = historyItems.map((item: any) => ({
-      name: item.itemName,
-      category: categoryMap.get(item.itemName) || undefined,
-      useCount: item._count.itemName,
-      lastUsedAt: item._max.createdAt,
-    }));
+    const historyCallback = historyItems.map(
+      (item: {
+        itemName: string;
+        _count: { itemName: number };
+        _max: { createdAt: Date | null };
+      }) => ({
+        name: item.itemName,
+        category: categoryMap.get(item.itemName) || undefined,
+        useCount: item._count.itemName,
+        lastUsedAt: item._max.createdAt,
+      })
+    );
 
     return NextResponse.json({
       success: true,

@@ -155,6 +155,7 @@ export async function getResourceOwnerId(
     ownerField = 'userId';
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const resource = await (prisma[model] as any).findUnique({
     where: { id: resourceId },
     select: { [ownerField]: true },
@@ -191,8 +192,9 @@ export async function getOwnedResource<T>(
   model: 'pantryItem' | 'recipe' | 'mealPlan',
   resourceId: string,
   userId: string,
-  select?: any
+  select?: Record<string, unknown>
 ): Promise<T | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const resource = await (prisma[model] as any).findFirst({
     where: {
       id: resourceId,

@@ -13,11 +13,14 @@ import { notFound } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useCallback, useMemo, useState } from 'react';
 
+import { CollaborationIndicator } from '@/components/features/lists/CollaborationIndicator';
 import { Container, Header } from '@/components/layout';
 import { Badge, Button, Input } from '@/components/ui';
 import { ErrorMessage } from '@/components/ui';
 import { useCreateItem, useListItems } from '@/hooks/api/useItems';
 import { useList } from '@/hooks/api/useLists';
+import { useRealtimeList } from '@/hooks/useRealtimeList';
+import { useRealtimePresence } from '@/hooks/useRealtimePresence';
 import { cn } from '@/lib/utils';
 import { getCurrencySymbol } from '@/lib/utils/formatCurrency';
 import { useSettingsStore } from '@/stores/useSettingsStore';
@@ -61,6 +64,12 @@ export function ListDetailContent({ listId }: ListDetailContentProps) {
   } = useListItems(listId);
 
   const createItemMutation = useCreateItem(listId);
+
+  // Real-time subscriptions
+  useRealtimeList(listId);
+  // Cast needed because useRealtimePresence returns PresenceState[] which extends User but TS might be strict
+  // Actually, we can just pass it directly if types align.
+  const activeUsers = useRealtimePresence(listId);
 
   const list = listResponse;
   const items = useMemo(() => itemsResponse || [], [itemsResponse]);
@@ -242,6 +251,11 @@ export function ListDetailContent({ listId }: ListDetailContentProps) {
             </Badge>
           )}
         </div>
+
+        <CollaborationIndicator
+          users={activeUsers}
+          currentUserId={session?.user?.id}
+        />
 
         <Button
           variant="ghost"

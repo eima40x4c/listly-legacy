@@ -166,6 +166,7 @@ describe('UserRepository', () => {
         listCount: 10,
         itemCount: 50,
         collaborationCount: 5,
+        completedListsCount: 3,
       });
     });
   });

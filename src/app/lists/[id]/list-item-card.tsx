@@ -216,7 +216,7 @@ export function ListItemCard({ item, listId, mode }: ListItemCardProps) {
                   {currencySymbol}
                   {typeof item.estimatedPrice === 'number'
                     ? item.estimatedPrice.toFixed(2)
-                    : parseFloat(item.estimatedPrice as any).toFixed(2)}
+                    : parseFloat(item.estimatedPrice as string).toFixed(2)}
                 </span>
               )}
 

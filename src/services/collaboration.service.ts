@@ -77,8 +77,13 @@ export class CollaborationService implements ICollaborationService {
     if (!targetUser) {
       // TODO: Send invitation email to non-existent user
       throw new NotFoundError(
-        'User not found. Email invitation feature coming soon.'
+        `User with email ${input.targetEmail} not found. Email invitations are coming soon.`
       );
+    }
+
+    // Prevent sharing with self
+    if (targetUser.id === input.ownerId) {
+      throw new ValidationError('You cannot share a list with yourself');
     }
 
     // Check if already a collaborator

@@ -39,7 +39,10 @@ export function ShareListModal({
         const response = await fetch(`/api/v1/lists/${listId}/collaborators`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim(), role }),
+          body: JSON.stringify({
+            email: email.trim(),
+            role: role.toUpperCase(),
+          }),
         });
 
         if (!response.ok) {

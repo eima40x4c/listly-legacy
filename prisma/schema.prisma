@@ -10,8 +10,9 @@ generator client {
 // Note: For Prisma 7+, datasource URL configuration will move to prisma.config.ts
 // Current setup is compatible with Prisma 5.x (staying on v5 for stability)
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -19,30 +20,30 @@ datasource db {
 // ============================================
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String
-  passwordHash String?   @map("password_hash") // Nullable for OAuth-only users
-  avatarUrl    String?   @map("avatar_url")
-  provider     AuthProvider @default(EMAIL)
-  providerId   String?   @map("provider_id") // OAuth provider user ID
-  emailVerified Boolean  @default(false) @map("email_verified")
-  isActive     Boolean   @default(true) @map("is_active")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id            String       @id @default(cuid())
+  email         String       @unique
+  name          String
+  passwordHash  String?      @map("password_hash") // Nullable for OAuth-only users
+  avatarUrl     String?      @map("avatar_url")
+  provider      AuthProvider @default(EMAIL)
+  providerId    String?      @map("provider_id") // OAuth provider user ID
+  emailVerified Boolean      @default(false) @map("email_verified")
+  isActive      Boolean      @default(true) @map("is_active")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
 
   // Relations
-  ownedLists        ShoppingList[]    @relation("ListOwner")
-  collaborations    ListCollaborator[]
-  addedItems        ListItem[]
-  pantryItems       PantryItem[]
-  recipes           Recipe[]
-  mealPlans         MealPlan[]
-  itemHistory       ItemHistory[]
-  preferences       UserPreferences?
-  favoriteStores    UserFavoriteStore[]
-  accounts          Account[]
-  sessions          Session[]
+  ownedLists     ShoppingList[]      @relation("ListOwner")
+  collaborations ListCollaborator[]
+  addedItems     ListItem[]
+  pantryItems    PantryItem[]
+  recipes        Recipe[]
+  mealPlans      MealPlan[]
+  itemHistory    ItemHistory[]
+  preferences    UserPreferences?
+  favoriteStores UserFavoriteStore[]
+  accounts       Account[]
+  sessions       Session[]
 
   @@index([email])
   @@index([provider, providerId])
@@ -56,18 +57,18 @@ enum AuthProvider {
 }
 
 model UserPreferences {
-  id                    String   @id @default(cuid())
-  defaultBudgetWarning  Decimal? @db.Decimal(10, 2) @map("default_budget_warning")
-  defaultCurrency       String   @default("USD") @map("default_currency")
-  notificationsEnabled  Boolean  @default(true) @map("notifications_enabled")
-  locationReminders     Boolean  @default(false) @map("location_reminders")
-  theme                 String   @default("system") // "light", "dark", "system"
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(cuid())
+  defaultBudgetWarning Decimal? @map("default_budget_warning") @db.Decimal(10, 2)
+  defaultCurrency      String   @default("USD") @map("default_currency")
+  notificationsEnabled Boolean  @default(true) @map("notifications_enabled")
+  locationReminders    Boolean  @default(false) @map("location_reminders")
+  theme                String   @default("system") // "light", "dark", "system"
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   // Relations
-  userId    String @unique @map("user_id")
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_preferences")
 }
@@ -123,23 +124,23 @@ model VerificationToken {
 // ============================================
 
 model ShoppingList {
-  id          String       @id @default(cuid())
+  id          String     @id @default(cuid())
   name        String
   description String?
-  budget      Decimal?     @db.Decimal(10, 2)
-  status      ListStatus   @default(ACTIVE)
-  isTemplate  Boolean      @default(false) @map("is_template")
-  color       String?      // Hex color for UI
-  icon        String?      // Icon identifier
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
-  completedAt DateTime?    @map("completed_at")
+  budget      Decimal?   @db.Decimal(10, 2)
+  status      ListStatus @default(ACTIVE)
+  isTemplate  Boolean    @default(false) @map("is_template")
+  color       String? // Hex color for UI
+  icon        String? // Icon identifier
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  completedAt DateTime?  @map("completed_at")
 
   // Relations
-  ownerId       String              @map("owner_id")
-  owner         User                @relation("ListOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  storeId       String?             @map("store_id")
-  store         Store?              @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  ownerId       String             @map("owner_id")
+  owner         User               @relation("ListOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  storeId       String?            @map("store_id")
+  store         Store?             @relation(fields: [storeId], references: [id], onDelete: SetNull)
   items         ListItem[]
   collaborators ListCollaborator[]
 
@@ -157,27 +158,27 @@ enum ListStatus {
 }
 
 model ListItem {
-  id              String    @id @default(cuid())
-  name            String
-  quantity        Decimal   @default(1) @db.Decimal(10, 2)
-  unit            String?   // "kg", "lbs", "pcs", etc.
-  notes           String?
-  isChecked       Boolean   @default(false) @map("is_checked")
-  priority        Int       @default(0) // Higher = more important
-  estimatedPrice  Decimal?  @db.Decimal(10, 2) @map("estimated_price")
-  sortOrder       Int       @default(0) @map("sort_order")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  checkedAt       DateTime? @map("checked_at")
+  id             String    @id @default(cuid())
+  name           String
+  quantity       Decimal   @default(1) @db.Decimal(10, 2)
+  unit           String? // "kg", "lbs", "pcs", etc.
+  notes          String?
+  isChecked      Boolean   @default(false) @map("is_checked")
+  priority       Int       @default(0) // Higher = more important
+  estimatedPrice Decimal?  @map("estimated_price") @db.Decimal(10, 2)
+  sortOrder      Int       @default(0) @map("sort_order")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  checkedAt      DateTime? @map("checked_at")
 
   // Relations
-  listId      String        @map("list_id")
-  list        ShoppingList  @relation(fields: [listId], references: [id], onDelete: Cascade)
-  categoryId  String?       @map("category_id")
-  category    Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  addedById   String        @map("added_by_id")
-  addedBy     User          @relation(fields: [addedById], references: [id])
-  history     ItemHistory[]
+  listId     String        @map("list_id")
+  list       ShoppingList  @relation(fields: [listId], references: [id], onDelete: Cascade)
+  categoryId String?       @map("category_id")
+  category   Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  addedById  String        @map("added_by_id")
+  addedBy    User          @relation(fields: [addedById], references: [id])
+  history    ItemHistory[]
 
   @@index([listId])
   @@index([categoryId])
@@ -187,15 +188,15 @@ model ListItem {
 }
 
 model ListCollaborator {
-  id        String            @id @default(cuid())
-  role      CollaboratorRole  @default(EDITOR)
-  joinedAt  DateTime          @default(now()) @map("joined_at")
+  id       String           @id @default(cuid())
+  role     CollaboratorRole @default(EDITOR)
+  joinedAt DateTime         @default(now()) @map("joined_at")
 
   // Relations
-  listId    String   @map("list_id")
-  list      ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listId String       @map("list_id")
+  list   ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  userId String       @map("user_id")
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([listId, userId])
   @@index([userId])
@@ -214,19 +215,19 @@ enum CollaboratorRole {
 // ============================================
 
 model Category {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
-  slug        String    @unique
+  slug        String   @unique
   description String?
   icon        String?
   color       String?
-  isDefault   Boolean   @default(false) @map("is_default")
-  sortOrder   Int       @default(0) @map("sort_order")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  isDefault   Boolean  @default(false) @map("is_default")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   // Relations
-  listItems      ListItem[]
-  pantryItems    PantryItem[]
+  listItems       ListItem[]
+  pantryItems     PantryItem[]
   storeCategories StoreCategory[]
 
   @@index([slug])
@@ -239,36 +240,36 @@ model Category {
 // ============================================
 
 model Store {
-  id          String    @id @default(cuid())
-  name        String
-  chain       String?   // "Whole Foods", "Costco", etc.
-  address     String?
-  latitude    Decimal?  @db.Decimal(10, 8)
-  longitude   Decimal?  @db.Decimal(11, 8)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id        String   @id @default(cuid())
+  name      String
+  chain     String? // "Whole Foods", "Costco", etc.
+  address   String?
+  latitude  Decimal? @db.Decimal(10, 8)
+  longitude Decimal? @db.Decimal(11, 8)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  shoppingLists     ShoppingList[]
-  categories        StoreCategory[]
-  favoriteUsers     UserFavoriteStore[]
-  itemHistory       ItemHistory[]
+  shoppingLists ShoppingList[]
+  categories    StoreCategory[]
+  favoriteUsers UserFavoriteStore[]
+  itemHistory   ItemHistory[]
 
   @@index([latitude, longitude])
   @@map("stores")
 }
 
 model StoreCategory {
-  id          String   @id @default(cuid())
-  aisleNumber String?  @map("aisle_number")
-  customName  String?  @map("custom_name")
-  sortOrder   Int      @default(0) @map("sort_order")
+  id          String  @id @default(cuid())
+  aisleNumber String? @map("aisle_number")
+  customName  String? @map("custom_name")
+  sortOrder   Int     @default(0) @map("sort_order")
 
   // Relations
-  storeId     String   @map("store_id")
-  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  categoryId  String   @map("category_id")
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  storeId    String   @map("store_id")
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  categoryId String   @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([storeId, categoryId])
   @@index([storeId])
@@ -280,10 +281,10 @@ model UserFavoriteStore {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  storeId   String   @map("store_id")
-  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  userId  String @map("user_id")
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeId String @map("store_id")
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, storeId])
   @@index([userId])
@@ -295,21 +296,21 @@ model UserFavoriteStore {
 // ============================================
 
 model ItemHistory {
-  id          String   @id @default(cuid())
-  itemName    String   @map("item_name") // Denormalized for history
-  quantity    Decimal  @db.Decimal(10, 2)
-  unit        String?
-  price       Decimal? @db.Decimal(10, 2)
-  action      ItemAction
-  createdAt   DateTime @default(now()) @map("created_at")
+  id        String     @id @default(cuid())
+  itemName  String     @map("item_name") // Denormalized for history
+  quantity  Decimal    @db.Decimal(10, 2)
+  unit      String?
+  price     Decimal?   @db.Decimal(10, 2)
+  action    ItemAction
+  createdAt DateTime   @default(now()) @map("created_at")
 
   // Relations
-  itemId      String?  @map("item_id") // Nullable in case item is deleted
-  item        ListItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
-  userId      String   @map("user_id")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  storeId     String?  @map("store_id")
-  store       Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  itemId  String?   @map("item_id") // Nullable in case item is deleted
+  item    ListItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  userId  String    @map("user_id")
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeId String?   @map("store_id")
+  store   Store?    @relation(fields: [storeId], references: [id], onDelete: SetNull)
 
   @@index([itemId])
   @@index([userId])
@@ -335,21 +336,21 @@ model PantryItem {
   name           String
   quantity       Decimal   @db.Decimal(10, 2)
   unit           String?
-  location       String?   // "fridge", "freezer", "pantry", "cabinet"
+  location       String? // "fridge", "freezer", "pantry", "cabinet"
   barcode        String?
   expirationDate DateTime? @map("expiration_date")
   purchaseDate   DateTime? @map("purchase_date")
-  purchasePrice  Decimal?  @db.Decimal(10, 2) @map("purchase_price")
+  purchasePrice  Decimal?  @map("purchase_price") @db.Decimal(10, 2)
   notes          String?
   isConsumed     Boolean   @default(false) @map("is_consumed")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  userId      String    @map("user_id")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId  String?   @map("category_id")
-  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId String?   @map("category_id")
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([categoryId])
@@ -364,26 +365,26 @@ model PantryItem {
 // ============================================
 
 model Recipe {
-  id              String   @id @default(cuid())
-  title           String
-  description     String?
-  instructions    String   @db.Text
-  prepTime        Int?     @map("prep_time") // minutes
-  cookTime        Int?     @map("cook_time") // minutes
-  servings        Int?
-  difficulty      String?  // "easy", "medium", "hard"
-  cuisine         String?
-  imageUrl        String?  @map("image_url")
-  sourceUrl       String?  @map("source_url")
-  isPublic        Boolean  @default(false) @map("is_public")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  instructions String   @db.Text
+  prepTime     Int?     @map("prep_time") // minutes
+  cookTime     Int?     @map("cook_time") // minutes
+  servings     Int?
+  difficulty   String? // "easy", "medium", "hard"
+  cuisine      String?
+  imageUrl     String?  @map("image_url")
+  sourceUrl    String?  @map("source_url")
+  isPublic     Boolean  @default(false) @map("is_public")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  userId        String              @map("user_id")
-  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ingredients   RecipeIngredient[]
-  mealPlans     MealPlan[]
+  userId      String             @map("user_id")
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+  mealPlans   MealPlan[]
 
   @@index([userId])
   @@index([cuisine])
@@ -391,35 +392,35 @@ model Recipe {
 }
 
 model RecipeIngredient {
-  id          String   @id @default(cuid())
-  name        String
-  quantity    Decimal  @db.Decimal(10, 2)
-  unit        String?
-  notes       String?
-  sortOrder   Int      @default(0) @map("sort_order")
+  id        String  @id @default(cuid())
+  name      String
+  quantity  Decimal @db.Decimal(10, 2)
+  unit      String?
+  notes     String?
+  sortOrder Int     @default(0) @map("sort_order")
 
   // Relations
-  recipeId    String   @map("recipe_id")
-  recipe      Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId String @map("recipe_id")
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@index([recipeId])
   @@map("recipe_ingredients")
 }
 
 model MealPlan {
-  id          String    @id @default(cuid())
-  mealType    MealType  @map("meal_type")
-  date        DateTime  // Scheduled date
+  id          String   @id @default(cuid())
+  mealType    MealType @map("meal_type")
+  date        DateTime // Scheduled date
   notes       String?
-  isCompleted Boolean   @default(false) @map("is_completed")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  isCompleted Boolean  @default(false) @map("is_completed")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  userId      String    @map("user_id")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recipeId    String?   @map("recipe_id")
-  recipe      Recipe?   @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  userId   String  @map("user_id")
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipeId String? @map("recipe_id")
+  recipe   Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([date])

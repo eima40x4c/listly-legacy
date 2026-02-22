@@ -100,31 +100,43 @@ export default function BudgetPage() {
       totalBudget += Number(list.budget || 0);
 
       // Sum items
-      list.items?.forEach((item: any) => {
-        const cost =
-          Number(item.actualPrice || item.estimatedPrice || 0) *
-          Number(item.quantity);
-        totalSpent += cost;
+      list.items?.forEach(
+        (item: {
+          actualPrice?: number | string;
+          estimatedPrice?: number | string;
+          quantity: number | string;
+          category?: {
+            id: string;
+            name: string;
+            color?: string;
+            icon?: string;
+          };
+        }) => {
+          const cost =
+            Number(item.actualPrice || item.estimatedPrice || 0) *
+            Number(item.quantity);
+          totalSpent += cost;
 
-        if (item.category) {
-          const catId = item.category.id;
-          const current = categorySpend.get(catId) || {
-            name: item.category.name,
-            spent: 0,
-            color: item.category.color,
-            icon: item.category.icon,
-          };
-          current.spent += cost;
-          categorySpend.set(catId, current);
-        } else {
-          const current = categorySpend.get('uncategorized') || {
-            name: 'Uncategorized',
-            spent: 0,
-          };
-          current.spent += cost;
-          categorySpend.set('uncategorized', current);
+          if (item.category) {
+            const catId = item.category.id;
+            const current = categorySpend.get(catId) || {
+              name: item.category.name,
+              spent: 0,
+              color: item.category.color,
+              icon: item.category.icon,
+            };
+            current.spent += cost;
+            categorySpend.set(catId, current);
+          } else {
+            const current = categorySpend.get('uncategorized') || {
+              name: 'Uncategorized',
+              spent: 0,
+            };
+            current.spent += cost;
+            categorySpend.set('uncategorized', current);
+          }
         }
-      });
+      );
     });
 
     return {

@@ -11,6 +11,7 @@
 
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ChevronDown,
   Minus,
@@ -26,7 +27,7 @@ import { Button } from '@/components/ui/Button';
 import { CustomSelect } from '@/components/ui/CustomSelect/CustomSelect';
 import { Input } from '@/components/ui/Input';
 import { useCategories } from '@/hooks/api/useCategories';
-import { useLists } from '@/hooks/api/useLists';
+import { useCreateList, useLists } from '@/hooks/api/useLists';
 import { COMMON_ITEMS } from '@/lib/constants/common-items';
 import { cn } from '@/lib/utils';
 import { getCurrencySymbol } from '@/lib/utils/formatCurrency';
@@ -335,6 +336,9 @@ export function CreateListModal({
     [handleAddItem]
   );
 
+  const createListMutation = useCreateList();
+  const queryClient = useQueryClient();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid || isSubmitting) return;
@@ -342,45 +346,64 @@ export function CreateListModal({
     setIsSubmitting(true);
 
     try {
-      // Use the correct API endpoint
-      const response = await fetch('/api/v1/lists', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim() || undefined,
-          icon: selectedIcon,
-          color: selectedColor,
-          budget: budget ? parseFloat(budget) : undefined,
-        }),
+      // 1. Fire the Create List Mutation (Optimistic)
+      const listData = await createListMutation.mutateAsync({
+        name: name.trim(),
+        description: description.trim() || undefined,
+        icon: selectedIcon,
+        color: selectedColor,
+        budget: budget ? parseFloat(budget) : undefined,
       });
 
-      if (!response.ok) throw new Error('Failed to create list');
+      const newListId = listData?.id || `temp-list-${Date.now()}`;
 
-      const data = await response.json();
-      const newList = data.data || data;
+      // 2. Add Items Optimistically using raw caching or a hook if available
+      // Since useCreateItem requires a listId, and offline temp lists won't work perfectly
+      // without server IDs, we'll manually push them to the queryClient queue or use standard fetch if online.
+      if (items.length > 0) {
+        if (!navigator.onLine) {
+          // Queue items for later or optimistically push them onto the list cache
+          const previousItems = queryClient.getQueryData<{ data: unknown[] }>([
+            'items',
+            'list',
+            newListId,
+          ]);
 
-      // Add items if present
-      if (items.length > 0 && newList.id) {
-        await Promise.all(
-          items.map((item) =>
-            fetch(`/api/v1/lists/${newList.id}/items`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name: item.name,
-                quantity: item.quantity,
-                unit: item.unit,
-                categoryId: item.categoryId,
-              }),
-            })
-          )
-        );
+          queryClient.setQueryData(['items', 'list', newListId], {
+            ...previousItems,
+            data: items.map((item, idx) => ({
+              id: `temp-item-${Date.now()}-${idx}`,
+              listId: newListId,
+              name: item.name,
+              quantity: item.quantity,
+              isChecked: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            })),
+          });
+        } else {
+          await Promise.all(
+            items.map((item) =>
+              fetch(`/api/v1/lists/${newListId}/items`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: item.name,
+                  quantity: item.quantity,
+                  unit: item.unit,
+                  categoryId: item.categoryId,
+                }),
+              })
+            )
+          );
+        }
       }
 
       onSuccess?.();
       onClose();
-      router.refresh();
+      if (navigator.onLine) {
+        router.refresh();
+      }
     } catch {
       // Error handling
     } finally {

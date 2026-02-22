@@ -116,7 +116,7 @@ export class MealPlanRepository
 
     if (mealType) {
       // Need to cast string to MealType enum if strict
-      where.mealType = mealType as any;
+      where.mealType = mealType as MealType;
     }
 
     if (isCompleted !== undefined) where.isCompleted = isCompleted;
@@ -156,7 +156,7 @@ export class MealPlanRepository
       where.date = { lte: endDate };
     }
 
-    if (mealType) where.mealType = mealType as any;
+    if (mealType) where.mealType = mealType as MealType;
     if (isCompleted !== undefined) where.isCompleted = isCompleted;
 
     return (this.db as PrismaClient).mealPlan.count({ where });

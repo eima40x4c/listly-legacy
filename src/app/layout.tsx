@@ -4,7 +4,7 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { SessionProvider } from 'next-auth/react';
 
-import { QueryProvider } from '@/components/providers';
+import { QueryProvider, StoreInitializer } from '@/components/providers';
 import { OfflineIndicator } from '@/components/pwa/OfflineIndicator';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Toaster } from '@/components/ui/Toaster';
@@ -66,6 +66,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <QueryProvider>
+              <StoreInitializer />
               {children}
               <OfflineIndicator />
             </QueryProvider>

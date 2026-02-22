@@ -170,7 +170,44 @@ export function useCreateList() {
       const response = await api.post<ListResponse>('/lists', data);
       return response.data;
     },
-    onSuccess: () => {
+    onMutate: async (newListData) => {
+      await queryClient.cancelQueries({ queryKey: listKeys.lists() });
+      const previousLists = queryClient.getQueryData<ListsResponse>(
+        listKeys.lists()
+      );
+
+      if (previousLists?.data) {
+        const tempId = `temp-list-${Date.now()}`;
+        queryClient.setQueryData<ListsResponse>(listKeys.lists(), {
+          ...previousLists,
+          data: [
+            {
+              id: tempId,
+              name: newListData.name,
+              description: newListData.description,
+              budget: newListData.budget,
+              color: newListData.color,
+              icon: newListData.icon,
+              status: 'ACTIVE',
+              isTemplate: false,
+              itemCount: 0,
+              completedCount: 0,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              role: 'OWNER',
+            } as ShoppingList,
+            ...previousLists.data,
+          ],
+        });
+      }
+      return { previousLists };
+    },
+    onError: (_err, _newVal, context) => {
+      if (context?.previousLists) {
+        queryClient.setQueryData(listKeys.lists(), context.previousLists);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listKeys.lists() });
     },
   });
@@ -184,7 +221,47 @@ export function useUpdateList() {
       const response = await api.patch<ListResponse>(`/lists/${id}`, data);
       return response.data;
     },
-    onSuccess: (_, { id }) => {
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: listKeys.lists() });
+      await queryClient.cancelQueries({ queryKey: listKeys.detail(id) });
+
+      const previousLists = queryClient.getQueryData<ListsResponse>(
+        listKeys.lists()
+      );
+      const previousListDetail = queryClient.getQueryData<ListResponse>(
+        listKeys.detail(id)
+      );
+
+      if (previousLists?.data) {
+        queryClient.setQueryData<ListsResponse>(listKeys.lists(), {
+          ...previousLists,
+          data: previousLists.data.map((list) =>
+            list.id === id ? { ...list, ...data } : list
+          ),
+        });
+      }
+
+      if (previousListDetail?.data) {
+        queryClient.setQueryData<ListResponse>(listKeys.detail(id), {
+          ...previousListDetail,
+          data: { ...previousListDetail.data, ...data },
+        });
+      }
+
+      return { previousLists, previousListDetail };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousLists) {
+        queryClient.setQueryData(listKeys.lists(), context.previousLists);
+      }
+      if (context?.previousListDetail) {
+        queryClient.setQueryData(
+          listKeys.detail(variables.id),
+          context.previousListDetail
+        );
+      }
+    },
+    onSettled: (_, _err, { id }) => {
       queryClient.invalidateQueries({ queryKey: listKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: listKeys.lists() });
     },
@@ -196,7 +273,27 @@ export function useDeleteList() {
 
   return useMutation({
     mutationFn: (id: string) => api.delete(`/lists/${id}`),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: listKeys.lists() });
+      const previousLists = queryClient.getQueryData<ListsResponse>(
+        listKeys.lists()
+      );
+
+      if (previousLists?.data) {
+        queryClient.setQueryData<ListsResponse>(listKeys.lists(), {
+          ...previousLists,
+          data: previousLists.data.filter((list) => list.id !== id),
+        });
+      }
+
+      return { previousLists };
+    },
+    onError: (_err, _newVal, context) => {
+      if (context?.previousLists) {
+        queryClient.setQueryData(listKeys.lists(), context.previousLists);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listKeys.lists() });
     },
   });
