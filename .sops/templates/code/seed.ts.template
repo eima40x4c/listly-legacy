@@ -1,0 +1,53 @@
+// prisma/seed.ts template
+// Replace [Entity] placeholders with your actual model names.
+// Run: pnpm db:seed
+
+import { PrismaClient } from '@prisma/client';
+import { hash } from 'bcryptjs';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log('🌱 Starting seed...');
+  await clearDatabase();
+  await seedReferenceData();
+  await seedUsers();
+  await seedSampleContent();
+  await seedEdgeCases();
+  console.log('✅ Seed completed!');
+}
+
+async function clearDatabase() {
+  // Delete in reverse order of FK dependencies
+  // await prisma.[childEntity].deleteMany();
+  // await prisma.[parentEntity].deleteMany();
+  console.log('🗑️  Cleared existing data');
+}
+
+async function seedReferenceData() {
+  // Seed static lookup/reference data (e.g., categories, roles, statuses)
+}
+
+async function seedUsers() {
+  const passwordHash = await hash('password123', 12);
+  // Create ADMIN and USER test accounts
+  // Document email/password in /docs/database/seed-data.md
+}
+
+async function seedSampleContent() {
+  // Create realistic sample records using faker if needed:
+  // import { faker } from '@faker-js/faker';
+}
+
+async function seedEdgeCases() {
+  // Create out-of-stock, max-length, empty-state records for UI/test coverage
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Seed failed:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

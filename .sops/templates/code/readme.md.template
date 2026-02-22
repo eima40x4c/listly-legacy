@@ -1,0 +1,88 @@
+&lt;!-- README Template — SOP-002 -->
+&lt;!-- Replace all placeholders marked with {PLACEHOLDER} -->
+
+# {PROJECT_NAME}
+
+> {One-line project description}
+
+## ✨ Features
+
+- ✅ Feature 1 — brief description
+- ✅ Feature 2 — brief description
+- 🚧 Feature 3 — in progress
+
+## 🛠 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | {e.g., Next.js 14} |
+| Language | TypeScript |
+| Database | {e.g., PostgreSQL + Prisma} |
+| Auth | {e.g., NextAuth.js} |
+| Styling | {e.g., Tailwind CSS} |
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js {version}+
+- pnpm {version}+
+- {Database} running locally (or Docker)
+
+### Installation
+
+```bash
+git clone {repo-url}
+cd {project-name}
+pnpm install
+cp .env.example .env    # Fill in values
+pnpm db:push
+pnpm db:seed            # Optional
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## 🔐 Environment Variables
+
+| Variable | Description | Required |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string | ✅ |
+| `NEXTAUTH_SECRET` | Auth secret (`openssl rand -base64 32`) | ✅ |
+| `NEXTAUTH_URL` | App URL | ✅ |
+
+See `.env.example` for all variables.
+
+## 📦 Scripts
+
+| Script | Description |
+|---|---|
+| `pnpm dev` | Start dev server |
+| `pnpm build` | Production build |
+| `pnpm test` | Run tests |
+| `pnpm lint` | Lint code |
+| `pnpm db:studio` | Open Prisma Studio |
+
+## 📁 Project Structure
+
+```
+src/
+├── app/          # Next.js App Router pages
+├── components/   # React components
+├── hooks/        # Custom hooks
+├── lib/          # Utilities and config
+├── services/     # Business logic
+└── types/        # TypeScript types
+```
+
+## 📖 API Documentation
+
+See [`docs/api/`](docs/api/) for the OpenAPI specification.
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## 📄 License
+
+{License type} — see [LICENSE](LICENSE).

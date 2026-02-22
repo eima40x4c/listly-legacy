@@ -1,0 +1,40 @@
+// Repository interface + implementation template (Prisma)
+// Replace [Entity], [entity], [CreateInput], [UpdateInput], [FilterInput] with your types.
+
+// src/repositories/interfaces/[entity]-repository.interface.ts
+export interface I[Entity]Repository {
+  findById(id: string): Promise<[Entity] | null>;
+  findMany(filters?: [FilterInput]): Promise<[Entity][]>;
+  create(data: [CreateInput]): Promise<[Entity]>;
+  update(id: string, data: [UpdateInput]): Promise<[Entity]>;
+  delete(id: string): Promise<void>;
+}
+
+// src/repositories/[entity].repository.ts
+import { prisma } from '@/lib/db';
+import type { I[Entity]Repository } from './interfaces/[entity]-repository.interface';
+
+export const [entity]Repository: I[Entity]Repository = {
+  async findById(id) {
+    return prisma.[entity].findUnique({ where: { id } });
+  },
+
+  async findMany(filters) {
+    return prisma.[entity].findMany({
+      where: { /* map from filters */ },
+      orderBy: { createdAt: 'desc' },
+    });
+  },
+
+  async create(data) {
+    return prisma.[entity].create({ data });
+  },
+
+  async update(id, data) {
+    return prisma.[entity].update({ where: { id }, data });
+  },
+
+  async delete(id) {
+    await prisma.[entity].delete({ where: { id } });
+  },
+};

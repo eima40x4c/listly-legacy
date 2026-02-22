@@ -1,0 +1,54 @@
+// Service interface + implementation template
+// Replace [Entity], [entity], [CreateInput], [UpdateInput], [FilterInput] with your types.
+
+// src/services/interfaces/[entity]-service.interface.ts
+export interface I[Entity]Service {
+  findById(id: string): Promise<[Entity] | null>;
+  findMany(filters?: [FilterInput]): Promise<[Entity][]>;
+  create(data: [CreateInput]): Promise<[Entity]>;
+  update(id: string, data: [UpdateInput]): Promise<[Entity]>;
+  delete(id: string): Promise<void>;
+  // Add domain-specific operations below:
+  // e.g., publish(id: string): Promise<[Entity]>
+}
+
+// src/services/[entity].service.ts
+import type { I[Entity]Service } from './interfaces/[entity]-service.interface';
+import type { I[Entity]Repository } from '../repositories/interfaces/[entity]-repository.interface';
+
+export function create[Entity]Service(
+  [entity]Repo: I[Entity]Repository
+): I[Entity]Service {
+  return {
+    async findById(id) {
+      return [entity]Repo.findById(id);
+    },
+
+    async findMany(filters) {
+      return [entity]Repo.findMany(filters);
+    },
+
+    async create(data) {
+      // Add business rules / validation here before persistence
+      return [entity]Repo.create(data);
+    },
+
+    async update(id, data) {
+      const existing = await [entity]Repo.findById(id);
+      if (!existing) throw new Error('[Entity] not found');
+      // Add business rules here
+      return [entity]Repo.update(id, data);
+    },
+
+    async delete(id) {
+      const existing = await [entity]Repo.findById(id);
+      if (!existing) throw new Error('[Entity] not found');
+      return [entity]Repo.delete(id);
+    },
+  };
+}
+
+// src/lib/service-factory.ts (singleton factory)
+// import { create[Entity]Service } from '../services/[entity].service';
+// import { [entity]Repository } from '../repositories/[entity].repository';
+// export const [entity]Service = create[Entity]Service([entity]Repository);

@@ -207,6 +207,8 @@ These are human-approved and must never be contradicted:
 | UI/UX Design           | `/docs/frontend/ui-analysis.md`, `/docs/frontend/ui-design/*.md`        | All 29 user stories mapped to screens/components |
 | Form Patterns          | SOP-303 outputs in `src/hooks/useZodForm.ts`, `src/components/ui/Form/` | React Hook Form + Zod per tech stack             |
 | API Integration        | `src/lib/api/client.ts`, `src/lib/query-client.ts`, `src/hooks/api/`    | TanStack Query with query keys factory           |
+| PWA Implementation     | `/docs/frontend/pwa.md`                                                 | US-024, US-026 (Offline, Install)                |
+| Real-time Design       | `/docs/frontend/realtime-design.md`                                     | US-007 (Real-time collaboration)                 |
 | Page Planning          | `/docs/frontend/pages/lists-overview.md`, `list-detail.md`, `auth.md`   | 3 of 14 screens planned in detail                |
 
 | Implementation (Level 2) | Location                                              | Traces to Design                                            |
@@ -216,10 +218,11 @@ These are human-approved and must never be contradicted:
 | API Client               | `src/lib/api/client.ts`                               | ApiClientError, fetch-based, handles 204                    |
 | Query Hooks              | `src/hooks/api/` (4 files)                            | Lists, items, categories, users                             |
 | Auth Hooks               | `src/hooks/useAuth.ts`, `src/hooks/usePermissions.ts` | Auth actions, permission checks                             |
+| PWA Support              | `src/sw.ts`, `src/app/manifest.ts`, `offline/`        | Serwist SC + Manifest + Offline page                        |
 
 **Checkpoint Status:** ⚠️ Issues Found
-**Last Run:** 2026-02-12
-**Issues:** Layer 0→1: 88% (Zustand not in designs, no PWA/real-time design docs). Layer 1→2: 82% (no Apple Sign-In, no Zustand, no real-time, no offline). No critical blockers. 5 warnings tracked.
+**Last Run:** 2026-02-18
+**Issues:** Layer 0→1: 95% (Zustand not in designs, but PWA/Real-time designs exist). Layer 1→2: 75% (Real-time hooks/components not implemented, Apple Auth missing in auth.ts, no Zustand). Critical: Real-time features (US-007) are designed but not implemented.
 
 ---
 
@@ -236,6 +239,41 @@ These are human-approved and must never be contradicted:
 **Checkpoint Status:** ⬚ Not Run / ✅ Passed / ⚠️ Issues Found
 **Last Run:** {date}
 **Issues:** {none or list issues}
+
+---
+
+## 📦 Context Cache
+
+> **AI Agent:** After completing each SOP, cache key outputs here so future SOPs
+> don't need to re-read full prerequisite files. Update inline as you progress.
+
+### Cached Decisions
+
+| Decision        | Value                                        | Source                                  | Set By  |
+| --------------- | -------------------------------------------- | --------------------------------------- | ------- |
+| Framework       | {e.g., Next.js 14}                           | `/docs/tech-stack.md`                   | SOP-001 |
+| Database        | {e.g., PostgreSQL}                           | `/docs/tech-stack.md`                   | SOP-001 |
+| ORM             | {e.g., Prisma}                               | `/docs/tech-stack.md`                   | SOP-001 |
+| Auth            | {e.g., Supabase Auth}                        | `/docs/tech-stack.md`                   | SOP-001 |
+| Styling         | {e.g., Tailwind CSS}                         | `/docs/tech-stack.md`                   | SOP-001 |
+| State Mgmt      | {e.g., React Query + Zustand}                | `/docs/tech-stack.md`                   | SOP-001 |
+| Hosting         | {e.g., Vercel}                               | `/docs/tech-stack.md`                   | SOP-001 |
+| Entities        | {e.g., User, List, Item, ...}                | `/docs/requirements.md`                 | SOP-000 |
+| Branching       | {e.g., GitHub Flow}                          | `CONTRIBUTING.md`                       | SOP-002 |
+| Design Patterns | {e.g., Service + Repository, function-based} | `/docs/architecture/design-patterns.md` | SOP-005 |
+
+### Cached File Locations
+
+| Artifact        | Path                                      | Last Updated By |
+| --------------- | ----------------------------------------- | --------------- |
+| Requirements    | `/docs/requirements.md`                   | SOP-000         |
+| Tech Stack      | `/docs/tech-stack.md`                     | SOP-001         |
+| Execution Brief | `/docs/execution-brief.md`                | Phase 0         |
+| Schema / ERD    | {e.g., `prisma/schema.prisma`}            | SOP-101         |
+| API Spec        | {e.g., `/docs/api/openapi.yaml`}          | SOP-202         |
+| Component Docs  | {e.g., `/docs/frontend/components.md`}    | SOP-300         |
+| Visual Design   | {e.g., `/docs/frontend/visual-design.md`} | SOP-302         |
+| Page Manifest   | {e.g., `/docs/frontend/page-manifest.md`} | SOP-305         |
 
 ---
 
@@ -263,48 +301,55 @@ These are human-approved and must never be contradicted:
 
 ---
 
+### Iterative SOP Progress
+
+> **AI Agent:** If the current SOP is iterative (SOP-200, 201, 202, or 305), track per-unit progress here. Copy this template for each iterative SOP you execute.
+
+<!--
+### Iterative SOP: SOP-{XXX} — {Title}
+
+**Manifest Approved:** ⬚ / ✅
+
+| # | Work Unit | Status | Output Files | Checkpoint |
+|---|-----------|--------|--------------|------------|
+| 1 | {Unit A}  | ⬚     | {files}      | ⬚         |
+| 2 | {Unit B}  | ⬚     | {files}      | ⬚         |
+| 3 | {Unit C}  | ⬚     | {files}      | ⬚         |
+
+**Coverage:** 0/{total} units complete
+**Status Legend:** ⬚ Not Started · 🔄 In Progress · ✅ Complete
+-->
+
+---
+
 ## 📝 Session Prompt Template
 
+> **AI Agent:** When updating this section, select the correct **Prompt Pattern** from `AI-GUIDE.md` → "Prompt Patterns" based on the current situation:
+>
+> | Situation                                       | Pattern to Use                               |
+> | ----------------------------------------------- | -------------------------------------------- |
+> | Executing a single non-iterative SOP            | **Pattern 1:** Execute a Single SOP          |
+> | Resuming from a previous session                | **Pattern 2:** Continue From Last Session    |
+> | Executing multiple related SOPs in sequence     | **Pattern 3:** Execute Multiple Related SOPs |
+> | Reviewing/verifying completed SOP outputs       | **Pattern 4:** Review and Verify             |
+> | Starting a brand new session (context recovery) | **Pattern 5:** Recover Context               |
+> | Executing an iterative SOP (200, 201, 202, 305) | **Pattern 6:** Execute Iterative SOP         |
+>
+> Copy the matching pattern template from `AI-GUIDE.md`, fill in the project-specific values, and replace the prompt below.
+
 ```markdown
-## Context
+Execute SOP-400 (AI Feasibility Analysis).
 
-I'm working on Listly - Smart Shopping Companion: Mobile-first PWA for smart shopping list management with real-time collaboration, AI suggestions, and pantry tracking.
+Read:
 
-**Project location:** /home/eima40x4c/Projects/listly
-**Session tracker:** `.prompts/AI-SESSION.md`
-**SOPs location:** `.sops/`
+- `.prompts/AI-SESSION.md` for context and cached decisions
+- `.sops/phase-4-ai-integration/SOP-400-ai-feasibility.md` for the procedure
+- `/docs/requirements.md` for AI-related user stories
+- `/docs/tech-stack.md` for current stack constraints
 
-## Completed Work
-
-The following SOPs have been completed:
-
-- Phase 0: Initialization (SOPs 000-006)
-  - Requirements Gathering, Tech Stack, Repository Setup, Project Structure
-  - Environment Setup, Design Patterns, Code Style Standards
-- Phase 1: Database (SOPs 100-102)
-  - Database Selection, Schema Design, Seed Data
-- Phase 2: Backend (SOPs 200-206)
-  - Service Layer, API Design, Authentication, Authorization
-  - Error Handling, Validation, Repository Pattern
-- Phase 3: Frontend (SOPs 300-306)
-  - Component Architecture, Styling Standards, API Integration
-  - Form Handling, UI/UX Design, Page Implementation, Progressive Web App
-
-## Current Task
-
-Execute **SOP-400** (AI Feasibility Analysis).
-
-**Read these files:**
-
-1. .sops/phase-4-ai-integration/SOP-400-ai-feasibility.md
-2. /docs/requirements.md
-3. /docs/tech-stack.md
-
-**Refer to `AI-GUIDE.md` to attend to your responsibilities and for guidance on best practices.**
-**Follow the SOP's Procedure section step by step.**
-**Create all outputs listed in the SOP's Outputs section.**
-**Update `.prompts/AI-SESSION.md` when complete.**
-**Update `.sops/templates/project-checklist.md` and check off deliverables**
+Follow the SOP's Procedure section step by step.
+Create all outputs listed in the SOP's Outputs section.
+Update `.prompts/AI-SESSION.md` when complete (tracker, context cache, session prompt template, session log).
 ```
 
 ---
